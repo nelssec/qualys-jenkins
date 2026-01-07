@@ -16,7 +16,7 @@
 
     <name>Qualys Scanner Plugin</name>
     <description>Integrate Qualys container and code security scanning into Jenkins pipelines</description>
-    <url>https://github.com/Qualys/qualys-jenkins-plugin</url>
+    <url>https://github.com/nelssec/qualys-jenkins</url>
 
     <licenses>
         <license>
@@ -34,9 +34,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:https://github.com/Qualys/qualys-jenkins-plugin.git</connection>
-        <developerConnection>scm:git:git@github.com:Qualys/qualys-jenkins-plugin.git</developerConnection>
-        <url>https://github.com/Qualys/qualys-jenkins-plugin</url>
+        <connection>scm:git:https://github.com/nelssec/qualys-jenkins.git</connection>
+        <developerConnection>scm:git:git@github.com:nelssec/qualys-jenkins.git</developerConnection>
+        <url>https://github.com/nelssec/qualys-jenkins</url>
         <tag>HEAD</tag>
     </scm>
 
@@ -45,7 +45,7 @@
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <gitHubRepo>Qualys/qualys-jenkins-plugin</gitHubRepo>
+        <gitHubRepo>nelssec/qualys-jenkins</gitHubRepo>
     </properties>
 
     <dependencyManagement>

@@ -278,8 +278,8 @@ Check your Qualys policy configuration in the Qualys platform. Review the SARIF 
 
 ```bash
 # Clone the repository
-git clone https://github.com/Qualys/qualys-jenkins-plugin.git
-cd qualys-jenkins-plugin
+git clone https://github.com/nelssec/qualys-jenkins.git
+cd qualys-jenkins
 
 # Build the plugin
 mvn clean package
@@ -301,5 +301,5 @@ MIT License - see LICENSE file for details.
 
 ## Support
 
-- [Issue Tracker](https://github.com/Qualys/qualys-jenkins-plugin/issues)
+- [Issue Tracker](https://github.com/nelssec/qualys-jenkins/issues)
 - [Qualys Community](https://community.qualys.com/)
