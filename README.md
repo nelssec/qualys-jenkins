@@ -51,6 +51,47 @@ Uses the Qualys Container Security sensor that's already deployed on your Jenkin
 - For CICD Sensor: Qualys Container Security sensor deployed on agent
 - Qualys subscription with API access
 
+## CloudBees CI Compatibility
+
+This plugin is fully compatible with CloudBees CI (formerly CloudBees Jenkins Enterprise).
+
+| Feature | Description |
+|---------|-------------|
+| Folder-level credentials | Credentials resolve up the folder hierarchy |
+| CloudBees Folders | Jobs in nested folders work correctly |
+| Operations Center | Shared credentials across managed controllers |
+| High Availability | Build actions persist across failover |
+| RBAC | Uses standard Jenkins permissions model |
+
+### Folder Credentials
+
+Credentials defined at any folder level are automatically resolved. The plugin searches up the folder hierarchy:
+
+```
+Jenkins Root
+└── Organization (Folder)      ← Credentials defined here
+    └── Team (Folder)
+        └── my-pipeline        ← Credentials accessible here
+```
+
+### Pipeline in Folders
+
+```groovy
+// Works in jobs at any folder depth
+qualysScan(
+    credentialsId: 'qualys-api-token',  // Resolves from folder or global scope
+    scanType: 'container',
+    imageId: 'myapp:latest'
+)
+```
+
+### Dependencies
+
+The plugin includes optional CloudBees Folder support:
+- `cloudbees-folder` plugin (optional) - enables folder-scoped credential resolution
+
+No additional configuration required. The plugin detects CloudBees CI automatically.
+
 ## Installation
 
 ### From Jenkins Update Center

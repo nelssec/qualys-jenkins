@@ -77,6 +77,13 @@
             <artifactId>plain-credentials</artifactId>
         </dependency>
 
+        <!-- CloudBees Folder Support (for folder-level credentials) -->
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>cloudbees-folder</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Pipeline Support -->
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
