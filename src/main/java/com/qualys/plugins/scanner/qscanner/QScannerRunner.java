@@ -1,5 +1,6 @@
 package com.qualys.plugins.scanner.qscanner;
 
+import com.qualys.plugins.scanner.runner.ScannerRunner;
 import com.qualys.plugins.scanner.types.*;
 import hudson.EnvVars;
 import hudson.FilePath;
@@ -11,22 +12,15 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Manages downloading, verifying, and executing the QScanner CLI tool.
- */
-public class QScannerRunner {
+public class QScannerRunner implements ScannerRunner {
 
     private static final String QSCANNER_VERSION = "1.0.0";
     private static final String QSCANNER_DOWNLOAD_URL =
         "https://github.com/nelssec/qualys-lambda/raw/refs/heads/main/scanner-lambda/qscanner.gz";
-    // No checksum URL available for this source
     private static final String QSCANNER_CHECKSUM_URL = null;
 
     private static final int MAX_RETRIES = 5;
@@ -45,40 +39,32 @@ public class QScannerRunner {
         this.listener = listener;
     }
 
-    /**
-     * Downloads and sets up the QScanner binary.
-     */
+    @Override
     public void setup() throws IOException, InterruptedException {
         listener.getLogger().println("Setting up QScanner v" + QSCANNER_VERSION);
 
-        // Validate platform
         validatePlatform();
 
-        // Create temp directory for qscanner
         FilePath tempDir = workspace.child(".qualys-scanner");
         tempDir.mkdirs();
 
         FilePath gzFile = tempDir.child("qscanner.gz");
         qscannerBinary = tempDir.child("qscanner");
 
-        // Download if not exists or checksum mismatch
         if (!qscannerBinary.exists() || !verifyChecksum(qscannerBinary)) {
             downloadBinary(gzFile);
             extractBinary(gzFile, qscannerBinary);
             gzFile.delete();
         }
 
-        // Make executable
         qscannerBinary.chmod(0755);
         listener.getLogger().println("QScanner ready at: " + qscannerBinary.getRemote());
     }
 
     private void validatePlatform() throws IOException {
-        // QScanner currently only supports linux-amd64
         String os = System.getProperty("os.name", "").toLowerCase();
         String arch = System.getProperty("os.arch", "").toLowerCase();
 
-        // Map Java arch names to standard names
         if (arch.contains("amd64") || arch.contains("x86_64")) {
             arch = "amd64";
         }
@@ -124,14 +110,12 @@ public class QScannerRunner {
     }
 
     private boolean verifyChecksum(FilePath file) {
-        // Skip checksum verification if no checksum URL is configured
         if (QSCANNER_CHECKSUM_URL == null) {
             listener.getLogger().println("Checksum verification skipped (no checksum URL configured)");
             return true;
         }
 
         try {
-            // Download expected checksum
             URL checksumUrl = new URL(QSCANNER_CHECKSUM_URL);
             HttpURLConnection conn = (HttpURLConnection) checksumUrl.openConnection();
             conn.setInstanceFollowRedirects(true);
@@ -140,14 +124,12 @@ public class QScannerRunner {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
                 expectedChecksum = reader.readLine();
                 if (expectedChecksum != null) {
-                    // Format is usually: "checksum  filename" or just "checksum"
                     expectedChecksum = expectedChecksum.split("\\s+")[0].toLowerCase();
                 }
             } finally {
                 conn.disconnect();
             }
 
-            // Calculate actual checksum
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             try (InputStream fis = file.read()) {
                 byte[] buffer = new byte[8192];
@@ -176,9 +158,7 @@ public class QScannerRunner {
         }
     }
 
-    /**
-     * Executes a container image scan.
-     */
+    @Override
     public QScannerResult scanImage() throws IOException, InterruptedException {
         if (config.getImageId() == null || config.getImageId().isEmpty()) {
             return QScannerResult.failure(QScannerExitCode.INVALID_ARGUMENTS, "Image ID is required for container scan");
@@ -201,9 +181,7 @@ public class QScannerRunner {
         return executeWithRetry(args);
     }
 
-    /**
-     * Executes a code/repository scan.
-     */
+    @Override
     public QScannerResult scanRepo() throws IOException, InterruptedException {
         String scanPath = config.getScanPath();
         if (scanPath == null || scanPath.isEmpty()) {
@@ -219,9 +197,7 @@ public class QScannerRunner {
         return executeWithRetry(args);
     }
 
-    /**
-     * Executes a rootfs scan.
-     */
+    @Override
     public QScannerResult scanRootfs() throws IOException, InterruptedException {
         String scanPath = config.getScanPath();
         if (scanPath == null || scanPath.isEmpty()) {
@@ -238,13 +214,11 @@ public class QScannerRunner {
     private List<String> buildCommonArgs() {
         List<String> args = new ArrayList<>();
 
-        // Pod/region
         if (config.getPod() != null && !config.getPod().isEmpty()) {
             args.add("--pod");
             args.add(config.getPod());
         }
 
-        // Mode - use evaluate-policy if policy evaluation is enabled
         args.add("--mode");
         if (config.isUsePolicyEvaluation()) {
             args.add("evaluate-policy");
@@ -252,7 +226,6 @@ public class QScannerRunner {
             args.add(config.getMode() != null ? config.getMode() : "get-report");
         }
 
-        // Scan types
         String scanTypes = config.getScanTypes();
         if (config.isScanSecrets() && !scanTypes.contains("secret")) {
             scanTypes = scanTypes + ",secret";
@@ -263,7 +236,6 @@ public class QScannerRunner {
         args.add("--scan-types");
         args.add(scanTypes);
 
-        // Output formats - json is default, add spdx for SBOM if requested
         args.add("--format");
         if (config.isGenerateSbom()) {
             String sbomFormat = config.getSbomFormat();
@@ -276,11 +248,9 @@ public class QScannerRunner {
             args.add("json");
         }
 
-        // Report format (sarif, table, json, gitlab)
         args.add("--report-format");
         args.add(config.getReportFormat() != null ? config.getReportFormat() : "sarif");
 
-        // Output directory
         String outputDir = config.getOutputDir();
         if (outputDir == null || outputDir.isEmpty()) {
             outputDir = workspace.child("qualys-scan-results").getRemote();
@@ -288,27 +258,22 @@ public class QScannerRunner {
         args.add("--output-dir");
         args.add(outputDir);
 
-        // Timeout - QScanner expects duration format like "5m" or "300s"
         args.add("--scan-timeout");
         args.add(config.getScanTimeout() + "s");
 
-        // Log level
         args.add("--log-level");
         args.add(config.getLogLevel() != null ? config.getLogLevel() : "info");
 
-        // Policy tags (only applicable when mode is evaluate-policy)
         if (config.isUsePolicyEvaluation() && config.getPolicyTags() != null && !config.getPolicyTags().isEmpty()) {
             args.add("--policy-tags");
             args.add(config.getPolicyTags());
         }
 
-        // Proxy
         if (config.getProxyUrl() != null && !config.getProxyUrl().isEmpty()) {
             args.add("--proxy");
             args.add(config.getProxyUrl());
         }
 
-        // TLS verification (correct flag name is --skip-verify-tls)
         if (config.isSkipTlsVerify()) {
             args.add("--skip-verify-tls");
         }
@@ -327,7 +292,6 @@ public class QScannerRunner {
             args.add(config.getExcludeFiles());
         }
 
-        // Offline scan disables java-db download for SCA
         if (config.isOfflineScan()) {
             args.add("--offline-scan=true");
         }
@@ -340,7 +304,6 @@ public class QScannerRunner {
         while (attempt < MAX_RETRIES) {
             result = execute(args);
 
-            // Check if we should retry
             if (result.getExitCode() != null && result.getExitCode().isRetryable()) {
                 attempt++;
                 if (attempt < MAX_RETRIES) {
@@ -362,21 +325,17 @@ public class QScannerRunner {
     private QScannerResult execute(List<String> args) throws IOException, InterruptedException {
         long startTime = System.currentTimeMillis();
 
-        // Build command
         ArgumentListBuilder cmd = new ArgumentListBuilder();
         cmd.add(qscannerBinary.getRemote());
         for (String arg : args) {
             cmd.add(arg);
         }
 
-        // Log command (masking sensitive data)
         listener.getLogger().println("Executing: " + cmd.toString());
 
-        // Set up environment
         EnvVars env = new EnvVars();
         env.put("QUALYS_ACCESS_TOKEN", config.getAccessToken());
 
-        // Create output directory
         String outputDir = config.getOutputDir();
         if (outputDir == null || outputDir.isEmpty()) {
             outputDir = workspace.child("qualys-scan-results").getRemote();
@@ -384,7 +343,6 @@ public class QScannerRunner {
         FilePath outputPath = new FilePath(workspace.getChannel(), outputDir);
         outputPath.mkdirs();
 
-        // Execute with timeout (add 60s buffer to scan timeout for setup/teardown)
         ByteArrayOutputStream stdout = new ByteArrayOutputStream();
         ByteArrayOutputStream stderr = new ByteArrayOutputStream();
         int timeoutSeconds = config.getScanTimeout() + 60;
@@ -400,7 +358,6 @@ public class QScannerRunner {
 
             hudson.Proc proc = procStarter.start();
 
-            // Wait with timeout
             long deadline = System.currentTimeMillis() + (timeoutSeconds * 1000L);
             while (proc.isAlive()) {
                 if (System.currentTimeMillis() > deadline) {
@@ -420,7 +377,6 @@ public class QScannerRunner {
 
         long duration = System.currentTimeMillis() - startTime;
 
-        // Log output
         String stdoutStr = stdout.toString();
         String stderrStr = stderr.toString();
 
@@ -431,7 +387,6 @@ public class QScannerRunner {
             listener.error(stderrStr);
         }
 
-        // Parse result
         QScannerResult result = new QScannerResult();
         result.setExitCode(QScannerExitCode.fromCode(exitCode));
         result.setScanDurationMs(duration);
@@ -441,7 +396,7 @@ public class QScannerRunner {
             result.setSuccess(true);
             result.setPolicyResult(QScannerResult.PolicyResult.ALLOW);
         } else if (exitCode == 42) {
-            result.setSuccess(true); // Scan succeeded, but policy denied
+            result.setSuccess(true);
             result.setPolicyResult(QScannerResult.PolicyResult.DENY);
         } else if (exitCode == 43) {
             result.setSuccess(true);
@@ -451,7 +406,6 @@ public class QScannerRunner {
             result.setErrorMessage(result.getExitCode().getDescription() + ": " + stderrStr);
         }
 
-        // Find report files
         findReportFiles(result, outputPath);
 
         return result;
@@ -472,5 +426,15 @@ public class QScannerRunner {
         } catch (Exception e) {
             listener.getLogger().println("Warning: Could not enumerate report files: " + e.getMessage());
         }
+    }
+
+    @Override
+    public String getBackendName() {
+        return "QScanner";
+    }
+
+    @Override
+    public boolean supportsScanType(String scanType) {
+        return "container".equals(scanType) || "code".equals(scanType) || "rootfs".equals(scanType);
     }
 }

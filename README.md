@@ -4,6 +4,9 @@ Integrate Qualys container and code security scanning into your Jenkins CI/CD pi
 
 ## Features
 
+- **Two Scanner Backends**:
+  - **QScanner (On-Demand)**: Downloads and runs the qscanner binary - no agent installation required
+  - **CICD Sensor (Installed)**: Uses the pre-installed Qualys Container Security sensor for faster scans
 - **Container Image Scanning**: Scan Docker images for vulnerabilities
 - **Code/Repository Scanning**: Scan source code for vulnerabilities (SCA) and secrets
 - **Rootfs Scanning**: Scan root filesystem directories
@@ -14,11 +17,38 @@ Integrate Qualys container and code security scanning into your Jenkins CI/CD pi
 - **Jira Integration**: Automatically create Jira issues for vulnerabilities
 - **Pipeline Support**: Full support for declarative and scripted pipelines
 
+## Scanner Backends
+
+This plugin supports two scanning backends:
+
+| Backend | Best For | Requirements |
+|---------|----------|--------------|
+| **QScanner** | CI/CD pipelines, ephemeral agents | Linux amd64, internet access |
+| **CICD Sensor** | Dedicated build servers, faster scans | Pre-installed Qualys sensor |
+
+### QScanner (On-Demand)
+
+QScanner downloads the scanner binary on-demand. No pre-installation required.
+
+- Supports: Container, Code, and Rootfs scans
+- Authentication: Qualys API Token
+- Best for: Dynamic/ephemeral Jenkins agents
+
+### CICD Sensor (Installed)
+
+Uses the Qualys Container Security sensor that's already deployed on your Jenkins agent.
+
+- Supports: Container scans only
+- Authentication: Qualys Username/Password
+- Best for: Dedicated build servers with the sensor pre-installed
+- Faster: No binary download, sensor runs continuously
+
 ## Requirements
 
 - Jenkins 2.426.3 or later
 - Java 11 or later
-- Linux agent (amd64 architecture) for running scans
+- For QScanner: Linux agent (amd64 architecture)
+- For CICD Sensor: Qualys Container Security sensor deployed on agent
 - Qualys subscription with API access
 
 ## Installation
@@ -40,14 +70,27 @@ Integrate Qualys container and code security scanning into your Jenkins CI/CD pi
 
 ### 1. Add Qualys Credentials
 
+#### For QScanner Backend (API Token)
+
 1. Navigate to **Manage Jenkins** > **Manage Credentials**
-2. Click on the appropriate domain (or global)
-3. Click **Add Credentials**
-4. Select **Qualys API Token** from the Kind dropdown
-5. Configure:
+2. Click **Add Credentials**
+3. Select **Qualys API Token** from the Kind dropdown
+4. Configure:
    - **Pod**: Select your Qualys platform region (US1, US2, EU1, etc.)
    - **Access Token**: Your Qualys API access token
-6. Save the credentials
+5. Save the credentials
+
+#### For CICD Sensor Backend (Username/Password)
+
+1. Navigate to **Manage Jenkins** > **Manage Credentials**
+2. Click **Add Credentials**
+3. Select **Qualys Username/Password** from the Kind dropdown
+4. Configure:
+   - **Pod**: Select your Qualys platform region
+   - **Username**: Your Qualys username
+   - **Password**: Your Qualys password
+   - (Optional) **Use OAuth**: Enable for OAuth client credentials
+5. Save the credentials
 
 ### 2. (Optional) Add Jira Credentials
 
@@ -64,12 +107,13 @@ If you want to create Jira issues for vulnerabilities:
 ### Freestyle Project
 
 1. Add a build step **Qualys Security Scan**
-2. Select your Qualys credentials
-3. Choose scan type (Container, Code, or Rootfs)
-4. Configure scan options and thresholds
-5. Save and run
+2. Select your scanner backend (QScanner or CICD Sensor)
+3. Select your Qualys credentials
+4. Choose scan type (Container, Code, or Rootfs)
+5. Configure scan options and thresholds
+6. Save and run
 
-### Pipeline (Declarative)
+### Pipeline with QScanner Backend
 
 ```groovy
 pipeline {
@@ -85,7 +129,8 @@ pipeline {
         stage('Security Scan') {
             steps {
                 qualysScan(
-                    credentialsId: 'qualys-credentials',
+                    credentialsId: 'qualys-api-token',
+                    scannerBackend: 'qscanner',
                     scanType: 'container',
                     imageId: "myapp:${BUILD_NUMBER}",
                     maxCritical: 0,
@@ -99,13 +144,45 @@ pipeline {
 }
 ```
 
-### Pipeline (Scripted)
+### Pipeline with CICD Sensor Backend
+
+```groovy
+pipeline {
+    agent { label 'qualys-sensor' }
+
+    stages {
+        stage('Build') {
+            steps {
+                sh 'docker build -t myapp:${BUILD_NUMBER} .'
+            }
+        }
+
+        stage('Security Scan') {
+            steps {
+                qualysScan(
+                    scannerBackend: 'cicd_sensor',
+                    cicdCredentialsId: 'qualys-username-password',
+                    scanType: 'container',
+                    imageId: "myapp:${BUILD_NUMBER}",
+                    pollingInterval: 10,
+                    vulnsTimeout: 600,
+                    maxCritical: 0,
+                    maxHigh: 5
+                )
+            }
+        }
+    }
+}
+```
+
+### Code Scan (QScanner only)
 
 ```groovy
 node {
     stage('Code Scan') {
         def result = qualysScan(
-            credentialsId: 'qualys-credentials',
+            credentialsId: 'qualys-api-token',
+            scannerBackend: 'qscanner',
             scanType: 'code',
             scanPath: '.',
             scanSecrets: true,
@@ -124,7 +201,7 @@ node {
 
 ```groovy
 qualysScan(
-    credentialsId: 'qualys-credentials',
+    credentialsId: 'qualys-api-token',
     scanType: 'container',
     imageId: 'myapp:latest',
     storageDriver: 'docker-overlay2',
@@ -137,7 +214,7 @@ qualysScan(
 
 ```groovy
 qualysScan(
-    credentialsId: 'qualys-credentials',
+    credentialsId: 'qualys-api-token',
     scanType: 'code',
     scanPath: '.',
     scanSecrets: true,
@@ -146,18 +223,25 @@ qualysScan(
     createJiraIssues: true,
     jiraCredentialsId: 'jira-credentials',
     jiraProjectKey: 'SEC',
-    jiraMinSeverity: 4,  // High and Critical only
+    jiraMinSeverity: 4,
     jiraLabels: 'security,automated'
 )
 ```
 
 ## Parameters
 
+### Backend Selection
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `scannerBackend` | `qscanner` | Backend to use: `qscanner` or `cicd_sensor` |
+| `credentialsId` | - | Qualys API Token credential (for QScanner) |
+| `cicdCredentialsId` | - | Qualys Username/Password credential (for CICD Sensor) |
+
 ### Required Parameters
 
 | Parameter | Description |
 |-----------|-------------|
-| `credentialsId` | ID of the Qualys API Token credential |
 | `scanType` | Type of scan: `container`, `code`, or `rootfs` |
 
 ### Container Scan Parameters
@@ -167,6 +251,13 @@ qualysScan(
 | `imageId` | - | Container image to scan (required for container scans) |
 | `storageDriver` | `none` | Storage driver: `docker-overlay2`, `containerd-overlayfs` |
 | `platform` | - | Target platform for multi-arch images (e.g., `linux/amd64`) |
+
+### CICD Sensor Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `pollingInterval` | `10` | How often to check for scan results (seconds) |
+| `vulnsTimeout` | `600` | Maximum time to wait for scan results (seconds) |
 
 ### Code Scan Parameters
 
@@ -226,7 +317,7 @@ qualysScan(
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `proxyUrl` | - | HTTP proxy URL for QScanner |
+| `proxyUrl` | - | HTTP proxy URL |
 | `skipTlsVerify` | `false` | Skip TLS certificate verification |
 
 ## Pipeline Result Object
@@ -251,10 +342,10 @@ result.sbomPath            // string: path to SBOM file
 
 ## Security
 
-- Access tokens are stored encrypted in Jenkins credentials store
-- Tokens are passed to QScanner via environment variable (`QUALYS_ACCESS_TOKEN`)
-- Tokens are **never** logged or exposed in command line arguments
-- All downloads use HTTPS with checksum verification
+- Access tokens and passwords are stored encrypted in Jenkins credentials store
+- Credentials are passed securely via environment variables
+- Credentials are never logged or exposed in command line arguments
+- All downloads use HTTPS
 
 ## Troubleshooting
 
@@ -262,11 +353,19 @@ result.sbomPath            // string: path to SBOM file
 
 Ensure your Jenkins agent has internet access to GitHub releases. If behind a proxy, configure the `proxyUrl` parameter.
 
+### CICD Sensor Not Detected
+
+Ensure the Qualys Container Security sensor is running on your Jenkins agent:
+
+```bash
+docker ps --filter name=qualys-container-sensor
+```
+
 ### Scan Times Out
 
-Increase the `scanTimeout` parameter. Default is 300 seconds (5 minutes).
+Increase the `scanTimeout` parameter for QScanner or `vulnsTimeout` for CICD Sensor.
 
-### Platform Not Supported
+### Platform Not Supported (QScanner)
 
 QScanner currently only supports Linux amd64. Ensure your Jenkins agent runs on a compatible platform.
 
@@ -277,14 +376,9 @@ Check your Qualys policy configuration in the Qualys platform. Review the SARIF 
 ## Building from Source
 
 ```bash
-# Clone the repository
-git clone https://github.com/nelssec/qualys-jenkins.git
+git clone https://github.com/qualys/qualys-jenkins.git
 cd qualys-jenkins
-
-# Build the plugin
-mvn clean package
-
-# The .hpi file will be in target/
+mvn clean package -DskipTests
 ls target/*.hpi
 ```
 
@@ -301,5 +395,5 @@ MIT License - see LICENSE file for details.
 
 ## Support
 
-- [Issue Tracker](https://github.com/nelssec/qualys-jenkins/issues)
+- [Issue Tracker](https://github.com/qualys/qualys-jenkins/issues)
 - [Qualys Community](https://community.qualys.com/)

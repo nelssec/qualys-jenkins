@@ -4,9 +4,13 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.qualys.plugins.scanner.credentials.JiraCredentials;
 import com.qualys.plugins.scanner.credentials.QualysApiToken;
+import com.qualys.plugins.scanner.credentials.QualysCredentials;
 import com.qualys.plugins.scanner.issues.JiraIssueCreator;
 import com.qualys.plugins.scanner.qscanner.QScannerRunner;
 import com.qualys.plugins.scanner.qscanner.SarifParser;
+import com.qualys.plugins.scanner.runner.ScannerRunner;
+import com.qualys.plugins.scanner.sensor.CICDSensorConfig;
+import com.qualys.plugins.scanner.sensor.CICDSensorRunner;
 import com.qualys.plugins.scanner.thresholds.ThresholdEvaluator;
 import com.qualys.plugins.scanner.types.*;
 import hudson.*;
@@ -34,12 +38,23 @@ import java.util.stream.Collectors;
 
 /**
  * Jenkins build step for running Qualys security scans.
+ * Supports two backends:
+ * - QScanner: Downloads and runs the qscanner binary on-demand
+ * - CICD Sensor: Uses the pre-installed Qualys Container Security sensor
  */
 public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
 
     // Required fields
     private final String credentialsId;
     private final String scanType;
+
+    // Scanner backend selection
+    private String scannerBackend = "qscanner";
+
+    // CICD Sensor specific options
+    private String cicdCredentialsId;
+    private int pollingInterval = 10;
+    private int vulnsTimeout = 600;
 
     // Container scan options
     private String imageId;
@@ -99,29 +114,45 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
 
         listener.getLogger().println("=== Qualys Security Scan ===");
 
-        // Get credentials
-        QualysApiToken credentials = CredentialsProvider.findCredentialById(
-            credentialsId, QualysApiToken.class, run, Collections.emptyList());
+        ScannerBackend backend = ScannerBackend.fromValue(scannerBackend);
+        ScanType type = ScanType.fromValue(scanType);
 
-        if (credentials == null) {
-            throw new AbortException("Qualys credentials not found: " + credentialsId);
+        listener.getLogger().println("Backend: " + backend.getDisplayName());
+        listener.getLogger().println("Scan Type: " + type.getDisplayName());
+
+        // Create the appropriate runner based on backend
+        ScannerRunner runner;
+        QScannerConfig qscannerConfig = null;
+
+        if (backend == ScannerBackend.CICD_SENSOR) {
+            // CICD Sensor only supports container scans
+            if (type != ScanType.CONTAINER) {
+                throw new AbortException("CICD Sensor only supports container scans. " +
+                    "Use QScanner backend for " + type.getDisplayName() + " scans.");
+            }
+
+            runner = createCICDSensorRunner(run, workspace, launcher, listener, env);
+        } else {
+            // QScanner backend
+            QualysApiToken credentials = CredentialsProvider.findCredentialById(
+                credentialsId, QualysApiToken.class, run, Collections.emptyList());
+
+            if (credentials == null) {
+                throw new AbortException("Qualys credentials not found: " + credentialsId);
+            }
+
+            qscannerConfig = buildConfig(credentials, workspace, env);
+            runner = new QScannerRunner(qscannerConfig, workspace, launcher, listener);
         }
-
-        // Build configuration
-        QScannerConfig config = buildConfig(credentials, workspace, env);
-
-        // Run scanner
-        QScannerRunner runner = new QScannerRunner(config, workspace, launcher, listener);
 
         try {
             runner.setup();
         } catch (IOException e) {
-            handleError(run, listener, "Failed to setup QScanner: " + e.getMessage());
+            handleError(run, listener, "Failed to setup " + runner.getBackendName() + ": " + e.getMessage());
             return;
         }
 
         QScannerResult result;
-        ScanType type = ScanType.fromValue(scanType);
 
         switch (type) {
             case CONTAINER:
@@ -142,7 +173,50 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
         }
 
         // Process results
-        processResults(run, workspace, listener, result, config);
+        processResults(run, workspace, listener, result, qscannerConfig);
+    }
+
+    private ScannerRunner createCICDSensorRunner(Run<?, ?> run, FilePath workspace,
+                                                  Launcher launcher, TaskListener listener,
+                                                  EnvVars env) throws AbortException {
+        // Get CICD sensor credentials (username/password based)
+        String credsId = cicdCredentialsId != null ? cicdCredentialsId : credentialsId;
+        QualysCredentials credentials = CredentialsProvider.findCredentialById(
+            credsId, QualysCredentials.class, run, Collections.emptyList());
+
+        if (credentials == null) {
+            throw new AbortException("Qualys CICD credentials not found: " + credsId);
+        }
+
+        CICDSensorConfig config = CICDSensorConfig.builder()
+            .apiServer(credentials.getApiServer())
+            .username(credentials.getUsername())
+            .password(credentials.getPasswordPlainText())
+            .useOAuth(credentials.isUseOAuth())
+            .clientId(credentials.getClientId())
+            .clientSecret(credentials.getClientSecretPlainText())
+            .imageId(env.expand(imageId))
+            .pollingInterval(pollingInterval)
+            .vulnsTimeout(vulnsTimeout)
+            .maxCritical(maxCritical)
+            .maxHigh(maxHigh)
+            .maxMedium(maxMedium)
+            .maxLow(maxLow)
+            .outputDir(workspace.child("qualys-scan-results").getRemote())
+            .build();
+
+        // Add proxy if configured
+        if (proxyUrl != null && !proxyUrl.isEmpty()) {
+            try {
+                java.net.URL url = new java.net.URL(proxyUrl);
+                config.setProxyHost(url.getHost());
+                config.setProxyPort(url.getPort() > 0 ? url.getPort() : 8080);
+            } catch (Exception e) {
+                listener.getLogger().println("Warning: Invalid proxy URL: " + proxyUrl);
+            }
+        }
+
+        return new CICDSensorRunner(config, workspace, launcher, listener);
     }
 
     private QScannerConfig buildConfig(QualysApiToken credentials, FilePath workspace, EnvVars env) {
@@ -361,6 +435,10 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
     // Getters
     public String getCredentialsId() { return credentialsId; }
     public String getScanType() { return scanType; }
+    public String getScannerBackend() { return scannerBackend; }
+    public String getCicdCredentialsId() { return cicdCredentialsId; }
+    public int getPollingInterval() { return pollingInterval; }
+    public int getVulnsTimeout() { return vulnsTimeout; }
     public String getImageId() { return imageId; }
     public String getStorageDriver() { return storageDriver; }
     public String getPlatform() { return platform; }
@@ -392,6 +470,18 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
     public String getJiraAssignee() { return jiraAssignee; }
 
     // Setters with @DataBoundSetter
+    @DataBoundSetter
+    public void setScannerBackend(String scannerBackend) { this.scannerBackend = scannerBackend; }
+
+    @DataBoundSetter
+    public void setCicdCredentialsId(String cicdCredentialsId) { this.cicdCredentialsId = cicdCredentialsId; }
+
+    @DataBoundSetter
+    public void setPollingInterval(int pollingInterval) { this.pollingInterval = pollingInterval; }
+
+    @DataBoundSetter
+    public void setVulnsTimeout(int vulnsTimeout) { this.vulnsTimeout = vulnsTimeout; }
+
     @DataBoundSetter
     public void setImageId(String imageId) { this.imageId = imageId; }
 
@@ -523,6 +613,35 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
                 items.add(type.getDisplayName(), type.getValue());
             }
             return items;
+        }
+
+        public ListBoxModel doFillScannerBackendItems() {
+            ListBoxModel items = new ListBoxModel();
+            for (ScannerBackend backend : ScannerBackend.values()) {
+                items.add(backend.getDisplayName(), backend.getValue());
+            }
+            return items;
+        }
+
+        @POST
+        public ListBoxModel doFillCicdCredentialsIdItems(@AncestorInPath Item item,
+                                                         @QueryParameter String cicdCredentialsId) {
+            StandardListBoxModel result = new StandardListBoxModel();
+            if (item == null) {
+                if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                    return result.includeCurrentValue(cicdCredentialsId);
+                }
+            } else {
+                if (!item.hasPermission(Item.EXTENDED_READ) &&
+                    !item.hasPermission(CredentialsProvider.USE_ITEM)) {
+                    return result.includeCurrentValue(cicdCredentialsId);
+                }
+            }
+
+            return result
+                .includeEmptyValue()
+                .includeAs(ACL.SYSTEM, item, QualysCredentials.class)
+                .includeCurrentValue(cicdCredentialsId);
         }
 
         public ListBoxModel doFillStorageDriverItems() {

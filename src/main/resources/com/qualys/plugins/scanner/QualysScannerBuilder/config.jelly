@@ -2,14 +2,28 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define"
          xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
 
+    <f:section title="Scanner Backend">
+        <f:entry title="Scanner Backend" field="scannerBackend"
+                 description="Choose QScanner (on-demand) or CICD Sensor (pre-installed)">
+            <f:select/>
+        </f:entry>
+    </f:section>
+
     <f:section title="Connection Settings">
-        <f:entry title="Qualys Credentials" field="credentialsId">
+        <f:entry title="QScanner Credentials (API Token)" field="credentialsId"
+                 description="Qualys API Token for QScanner backend">
+            <f:select/>
+        </f:entry>
+
+        <f:entry title="CICD Sensor Credentials (Username/Password)" field="cicdCredentialsId"
+                 description="Qualys Username/Password for CICD Sensor backend">
             <f:select/>
         </f:entry>
     </f:section>
 
     <f:section title="Scan Target">
-        <f:entry title="Scan Type" field="scanType">
+        <f:entry title="Scan Type" field="scanType"
+                 description="Note: CICD Sensor only supports Container scans">
             <f:select/>
         </f:entry>
 
@@ -63,8 +77,24 @@
         </f:entry>
 
         <f:entry title="Offline Scan" field="offlineScan"
-                 description="Perform offline scan without network access">
+                 description="Perform offline scan without network access (QScanner only)">
             <f:checkbox/>
+        </f:entry>
+    </f:section>
+
+    <f:section title="CICD Sensor Options">
+        <f:description>
+            These options only apply when using the CICD Sensor backend.
+        </f:description>
+
+        <f:entry title="Polling Interval (seconds)" field="pollingInterval"
+                 description="How often to check for scan results">
+            <f:number default="10" min="5" max="60"/>
+        </f:entry>
+
+        <f:entry title="Scan Result Timeout (seconds)" field="vulnsTimeout"
+                 description="Maximum time to wait for scan results">
+            <f:number default="600" min="60" max="3600"/>
         </f:entry>
     </f:section>
 
