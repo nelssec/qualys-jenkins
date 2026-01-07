@@ -308,6 +308,17 @@
                             <div class="qualys-filter-controls">
                                 <div class="qualys-filter-row">
                                     <input type="text" id="pkg-search" placeholder="Search by package name or type..." class="qualys-search-input" />
+                                    <j:if test="${it.hasLayers()}">
+                                        <div class="qualys-page-size">
+                                            <label>Layer:</label>
+                                            <select id="pkg-layer-filter">
+                                                <option value="all">All Layers</option>
+                                                <j:forEach var="layer" items="${it.layers}">
+                                                    <option value="${layer}">${layer.length() > 19 ? layer.substring(7, 19) : layer}</option>
+                                                </j:forEach>
+                                            </select>
+                                        </div>
+                                    </j:if>
                                     <div class="qualys-page-size">
                                         <label>Show:</label>
                                         <select id="pkg-page-size">
@@ -333,7 +344,7 @@
                                 </thead>
                                 <tbody id="pkg-tbody">
                                     <j:forEach var="pkg" items="${it.packages}">
-                                        <tr>
+                                        <tr data-layer="${pkg.layerSHA != null ? pkg.layerSHA : ''}">
                                             <td>${pkg.name}</td>
                                             <td>${pkg.version != null ? pkg.version : '-'}</td>
                                             <td>${pkg.type != null ? pkg.type : '-'}</td>
@@ -448,8 +459,9 @@
 
                     createTableFilter({
                         searchId: 'pkg-search', pageSizeId: 'pkg-page-size', showingId: 'pkg-showing',
+                        layerFilterId: 'pkg-layer-filter',
                         tbodyId: 'pkg-tbody', tableId: 'pkg-table', noResultsId: 'pkg-no-results',
-                        countId: 'pkg-count', hasSeverity: false, hasLayer: false
+                        countId: 'pkg-count', hasSeverity: false, hasLayer: true
                     });
 
                     var sevFilters = document.querySelectorAll('#severity-filters .qualys-severity');
