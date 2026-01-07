@@ -206,8 +206,6 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
                 VulnerabilitySummary summary = SarifParser.parse(sarifFile);
                 result.setVulnerabilitySummary(summary);
 
-                listener.getLogger().println("\n" + summary.toString());
-
                 // Archive SARIF report
                 if (publishSarif) {
                     FilePath outputDir = workspace.child("qualys-scan-results");
@@ -268,7 +266,7 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
         }
 
         // Export environment variables for downstream steps
-        exportBuildVariables(run, result);
+        exportBuildVariables(run, result, listener);
     }
 
     private void createJiraIssuesFromSarif(Run<?, ?> run, TaskListener listener, String sarifPath) {
@@ -317,11 +315,11 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
         }
     }
 
-    private void exportBuildVariables(Run<?, ?> run, QScannerResult result) {
+    private void exportBuildVariables(Run<?, ?> run, QScannerResult result, TaskListener listener) {
         VulnerabilitySummary summary = result.getVulnerabilitySummary();
 
         // Store as build parameters for visibility
-        run.addAction(new QualysScanAction(
+        QualysScanAction scanAction = new QualysScanAction(
             summary.getTotal(),
             summary.getCritical(),
             summary.getHigh(),
@@ -330,7 +328,24 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
             result.getPolicyResult().name(),
             !result.shouldFailBuild(),
             result.getSarifReportPath()
-        ));
+        );
+
+        // Parse detailed report from SARIF
+        if (result.getSarifReportPath() != null) {
+            try {
+                FilePath sarifFile = new FilePath(new java.io.File(result.getSarifReportPath()));
+                if (sarifFile.exists()) {
+                    ScanReportDetails details = SarifParser.parseDetailed(sarifFile);
+                    details.setImageName(imageId);
+                    scanAction.setReportDetails(details);
+                    scanAction.setImageName(imageId);
+                }
+            } catch (Exception e) {
+                listener.getLogger().println("Warning: Could not parse detailed report: " + e.getMessage());
+            }
+        }
+
+        run.addAction(scanAction);
     }
 
     private void handleError(Run<?, ?> run, TaskListener listener, String message)

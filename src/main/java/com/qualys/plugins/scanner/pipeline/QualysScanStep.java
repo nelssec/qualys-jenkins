@@ -16,6 +16,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
@@ -280,8 +281,6 @@ public class QualysScanStep extends Step implements Serializable {
                     pipelineResult.setHighCount(summary.getHigh());
                     pipelineResult.setMediumCount(summary.getMedium());
                     pipelineResult.setLowCount(summary.getLow());
-
-                    listener.getLogger().println("\n" + summary.toString());
                 } catch (Exception e) {
                     listener.getLogger().println("Warning: Could not parse SARIF: " + e.getMessage());
                 }
@@ -317,8 +316,8 @@ public class QualysScanStep extends Step implements Serializable {
             pipelineResult.setJsonReportPath(result.getJsonReportPath());
             pipelineResult.setSbomPath(result.getSbomPath());
 
-            // Add build action
-            run.addAction(new QualysScanAction(
+            // Add build action with detailed report
+            QualysScanAction scanAction = new QualysScanAction(
                 pipelineResult.getTotalVulnerabilities(),
                 pipelineResult.getCriticalCount(),
                 pipelineResult.getHighCount(),
@@ -327,7 +326,24 @@ public class QualysScanStep extends Step implements Serializable {
                 pipelineResult.getPolicyResult(),
                 pipelineResult.isSuccess(),
                 result.getSarifReportPath()
-            ));
+            );
+
+            // Parse detailed report from SARIF
+            if (result.getSarifReportPath() != null) {
+                try {
+                    FilePath sarifFile = new FilePath(new java.io.File(result.getSarifReportPath()));
+                    if (sarifFile.exists()) {
+                        ScanReportDetails details = SarifParser.parseDetailed(sarifFile);
+                        details.setImageName(step.imageId);
+                        scanAction.setReportDetails(details);
+                        scanAction.setImageName(step.imageId);
+                    }
+                } catch (Exception e) {
+                    listener.getLogger().println("Warning: Could not parse detailed report: " + e.getMessage());
+                }
+            }
+
+            run.addAction(scanAction);
 
             if (shouldFail) {
                 handleFailure(run, listener, failureReason);
@@ -368,40 +384,52 @@ public class QualysScanStep extends Step implements Serializable {
         private String jsonReportPath;
         private String sbomPath;
 
-        // Getters and setters
+        // Getters and setters - @Whitelisted allows pipeline scripts to access these
+        @Whitelisted
         public boolean isSuccess() { return success; }
         public void setSuccess(boolean success) { this.success = success; }
 
+        @Whitelisted
         public String getErrorMessage() { return errorMessage; }
         public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
 
+        @Whitelisted
         public int getTotalVulnerabilities() { return totalVulnerabilities; }
         public void setTotalVulnerabilities(int totalVulnerabilities) { this.totalVulnerabilities = totalVulnerabilities; }
 
+        @Whitelisted
         public int getCriticalCount() { return criticalCount; }
         public void setCriticalCount(int criticalCount) { this.criticalCount = criticalCount; }
 
+        @Whitelisted
         public int getHighCount() { return highCount; }
         public void setHighCount(int highCount) { this.highCount = highCount; }
 
+        @Whitelisted
         public int getMediumCount() { return mediumCount; }
         public void setMediumCount(int mediumCount) { this.mediumCount = mediumCount; }
 
+        @Whitelisted
         public int getLowCount() { return lowCount; }
         public void setLowCount(int lowCount) { this.lowCount = lowCount; }
 
+        @Whitelisted
         public String getPolicyResult() { return policyResult; }
         public void setPolicyResult(String policyResult) { this.policyResult = policyResult; }
 
+        @Whitelisted
         public boolean isThresholdsPassed() { return thresholdsPassed; }
         public void setThresholdsPassed(boolean thresholdsPassed) { this.thresholdsPassed = thresholdsPassed; }
 
+        @Whitelisted
         public String getSarifReportPath() { return sarifReportPath; }
         public void setSarifReportPath(String sarifReportPath) { this.sarifReportPath = sarifReportPath; }
 
+        @Whitelisted
         public String getJsonReportPath() { return jsonReportPath; }
         public void setJsonReportPath(String jsonReportPath) { this.jsonReportPath = jsonReportPath; }
 
+        @Whitelisted
         public String getSbomPath() { return sbomPath; }
         public void setSbomPath(String sbomPath) { this.sbomPath = sbomPath; }
     }

@@ -1,4 +1,4 @@
-<?jelly escape='true'?>
+<?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define"
          xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
 
@@ -7,69 +7,305 @@
             <st:include page="sidepanel.jelly" it="${it.run}"/>
         </l:side-panel>
         <l:main-panel>
-            <h1>Qualys Security Scan Results</h1>
+            <style>
+                /* CSS Variables for theming */
+                :root {
+                    --qualys-bg: #ffffff;
+                    --qualys-card-bg: #ffffff;
+                    --qualys-card-border: #dee2e6;
+                    --qualys-text: #333333;
+                    --qualys-text-secondary: #555555;
+                    --qualys-text-muted: #666666;
+                    --qualys-table-header-bg: #f8f9fa;
+                    --qualys-table-border: #dee2e6;
+                    --qualys-table-row-border: #eeeeee;
+                    --qualys-table-hover: #f8f9fa;
+                    --qualys-link: #007bff;
+                    --qualys-stat-bg: #f8f9fa;
+                }
 
-            <div class="qualys-scan-summary">
-                <table class="pane bigtable" style="width: 100%;">
-                    <tr>
-                        <th colspan="2">Scan Summary</th>
-                    </tr>
-                    <tr>
-                        <td>Status</td>
-                        <td>
-                            <j:choose>
-                                <j:when test="${it.scanPassed}">
-                                    <span style="color: green; font-weight: bold;">PASSED</span>
-                                </j:when>
-                                <j:otherwise>
-                                    <span style="color: red; font-weight: bold;">FAILED</span>
-                                </j:otherwise>
-                            </j:choose>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Policy Result</td>
-                        <td>${it.policyResult}</td>
-                    </tr>
-                    <tr>
-                        <td>Total Vulnerabilities</td>
-                        <td>${it.totalVulnerabilities}</td>
-                    </tr>
-                </table>
+                /* Dark mode overrides */
+                @media (prefers-color-scheme: dark) {
+                    :root {
+                        --qualys-bg: #1e1e1e;
+                        --qualys-card-bg: #2d2d2d;
+                        --qualys-card-border: #444444;
+                        --qualys-text: #e0e0e0;
+                        --qualys-text-secondary: #cccccc;
+                        --qualys-text-muted: #aaaaaa;
+                        --qualys-table-header-bg: #383838;
+                        --qualys-table-border: #444444;
+                        --qualys-table-row-border: #3a3a3a;
+                        --qualys-table-hover: #383838;
+                        --qualys-link: #6db3f2;
+                        --qualys-stat-bg: #383838;
+                    }
+                }
+
+                /* Jenkins dark theme support */
+                [data-theme="dark"], .jenkins-dark-theme, body[data-color-scheme="dark"] {
+                    --qualys-bg: #1e1e1e;
+                    --qualys-card-bg: #2d2d2d;
+                    --qualys-card-border: #444444;
+                    --qualys-text: #e0e0e0;
+                    --qualys-text-secondary: #cccccc;
+                    --qualys-text-muted: #aaaaaa;
+                    --qualys-table-header-bg: #383838;
+                    --qualys-table-border: #444444;
+                    --qualys-table-row-border: #3a3a3a;
+                    --qualys-table-hover: #383838;
+                    --qualys-link: #6db3f2;
+                    --qualys-stat-bg: #383838;
+                }
+
+                .qualys-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--qualys-text); }
+                .qualys-header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+                .qualys-header h1 { margin: 0 0 10px 0; font-size: 24px; color: white; }
+                .qualys-status { display: inline-block; padding: 6px 16px; border-radius: 4px; font-weight: bold; font-size: 14px; }
+                .qualys-status.passed { background: #28a745; color: white; }
+                .qualys-status.failed { background: #dc3545; color: white; }
+                .qualys-card { background: var(--qualys-card-bg); border: 1px solid var(--qualys-card-border); border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+                .qualys-card h2 { margin: 0 0 15px 0; font-size: 18px; color: var(--qualys-text); border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+                .qualys-card h3 { margin: 15px 0 10px 0; font-size: 16px; color: var(--qualys-text-secondary); }
+                .qualys-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+                .qualys-stat { background: var(--qualys-stat-bg); padding: 15px; border-radius: 6px; text-align: center; }
+                .qualys-stat-value { font-size: 28px; font-weight: bold; color: var(--qualys-text); }
+                .qualys-stat-label { font-size: 12px; color: var(--qualys-text-muted); text-transform: uppercase; margin-top: 5px; }
+                .qualys-severity-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+                .qualys-severity { padding: 15px; border-radius: 6px; text-align: center; color: white; }
+                .qualys-severity.critical { background: #d9534f; }
+                .qualys-severity.high { background: #f0ad4e; color: #333; }
+                .qualys-severity.medium { background: #5bc0de; color: #333; }
+                .qualys-severity.low { background: #5cb85c; }
+                .qualys-severity-count { font-size: 24px; font-weight: bold; }
+                .qualys-severity-label { font-size: 11px; text-transform: uppercase; }
+                .qualys-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+                .qualys-table th { background: var(--qualys-table-header-bg); color: var(--qualys-text); padding: 12px 10px; text-align: left; border-bottom: 2px solid var(--qualys-table-border); font-weight: 600; }
+                .qualys-table td { padding: 10px; border-bottom: 1px solid var(--qualys-table-row-border); vertical-align: top; color: var(--qualys-text); }
+                .qualys-table tr:hover { background: var(--qualys-table-hover); }
+                .qualys-badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; color: white; }
+                .qualys-badge.critical { background: #d9534f; }
+                .qualys-badge.high { background: #f0ad4e; color: #333; }
+                .qualys-badge.medium { background: #5bc0de; color: #333; }
+                .qualys-badge.low { background: #5cb85c; }
+                .qualys-badge.info { background: #999; }
+                .qualys-info-row { display: flex; margin-bottom: 8px; }
+                .qualys-info-label { font-weight: 600; width: 150px; color: var(--qualys-text-secondary); }
+                .qualys-info-value { color: var(--qualys-text); word-break: break-all; }
+                .qualys-tabs { border-bottom: 2px solid var(--qualys-table-border); margin-bottom: 15px; }
+                .qualys-tab { display: inline-block; padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; color: var(--qualys-text); }
+                .qualys-tab.active { border-bottom-color: #007bff; color: #007bff; font-weight: 600; }
+                .qualys-tab-content { display: none; }
+                .qualys-tab-content.active { display: block; }
+                .qualys-cve-link { color: var(--qualys-link); text-decoration: none; }
+                .qualys-cve-link:hover { text-decoration: underline; }
+                .qualys-package-table td { font-family: monospace; font-size: 12px; }
+                .qualys-truncate { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                .qualys-qds { font-weight: bold; }
+                .qualys-qds.high { color: #ff6b6b; }
+                .qualys-qds.medium { color: #ffc107; }
+                .qualys-qds.low { color: #51cf66; }
+                .qualys-mono { font-family: monospace; font-size: 12px; color: var(--qualys-text); }
+                .qualys-success-text { color: #28a745; font-weight: 500; }
+                .qualys-muted-text { color: var(--qualys-text-muted); }
+            </style>
+
+            <div class="qualys-report">
+                <!-- Header -->
+                <div class="qualys-header">
+                    <h1>Qualys Security Scan Results</h1>
+                    <div>
+                        <span class="qualys-status ${it.scanPassed ? 'passed' : 'failed'}">
+                            ${it.statusText}
+                        </span>
+                        <j:if test="${it.imageName != null}">
+                            <span style="margin-left: 15px; opacity: 0.9;">Image: ${it.imageName}</span>
+                        </j:if>
+                    </div>
+                </div>
+
+                <!-- Image Info Card -->
+                <div class="qualys-card">
+                    <h2>Scan Information</h2>
+                    <div class="qualys-grid">
+                        <div>
+                            <div class="qualys-info-row">
+                                <span class="qualys-info-label">Image:</span>
+                                <span class="qualys-info-value">${it.imageName != null ? it.imageName : 'N/A'}</span>
+                            </div>
+                            <div class="qualys-info-row">
+                                <span class="qualys-info-label">Image ID:</span>
+                                <span class="qualys-info-value">${it.imageId != null ? it.imageId : 'N/A'}</span>
+                            </div>
+                            <div class="qualys-info-row">
+                                <span class="qualys-info-label">Operating System:</span>
+                                <span class="qualys-info-value">${it.operatingSystem}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="qualys-info-row">
+                                <span class="qualys-info-label">Policy Result:</span>
+                                <span class="qualys-info-value">${it.policyResult != null ? it.policyResult : 'N/A'}</span>
+                            </div>
+                            <div class="qualys-info-row">
+                                <span class="qualys-info-label">Total Packages:</span>
+                                <span class="qualys-info-value">${it.totalPackages}</span>
+                            </div>
+                            <div class="qualys-info-row">
+                                <span class="qualys-info-label">Total Vulnerabilities:</span>
+                                <span class="qualys-info-value">${it.totalVulnerabilities}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Severity Breakdown -->
+                <div class="qualys-card">
+                    <h2>Vulnerability Summary</h2>
+                    <div class="qualys-severity-grid">
+                        <div class="qualys-severity critical">
+                            <div class="qualys-severity-count">${it.criticalCount}</div>
+                            <div class="qualys-severity-label">Critical</div>
+                        </div>
+                        <div class="qualys-severity high">
+                            <div class="qualys-severity-count">${it.highCount}</div>
+                            <div class="qualys-severity-label">High</div>
+                        </div>
+                        <div class="qualys-severity medium">
+                            <div class="qualys-severity-count">${it.mediumCount}</div>
+                            <div class="qualys-severity-label">Medium</div>
+                        </div>
+                        <div class="qualys-severity low">
+                            <div class="qualys-severity-count">${it.lowCount}</div>
+                            <div class="qualys-severity-label">Low</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vulnerabilities Table -->
+                <j:if test="${it.hasDetailedReport()}">
+                    <div class="qualys-card">
+                        <h2>Vulnerabilities (${it.totalVulnerabilities})</h2>
+
+                        <j:if test="${it.totalVulnerabilities > 0}">
+                            <table class="qualys-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 80px;">Severity</th>
+                                        <th style="width: 100px;">QID</th>
+                                        <th>Title</th>
+                                        <th style="width: 150px;">Package</th>
+                                        <th style="width: 100px;">Version</th>
+                                        <th style="width: 100px;">Fixed In</th>
+                                        <th style="width: 150px;">CVEs</th>
+                                        <th style="width: 60px;">QDS</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <j:forEach var="vuln" items="${it.vulnerabilities}">
+                                        <tr>
+                                            <td>
+                                                <span class="qualys-badge ${vuln.severityClass}">${vuln.severity}</span>
+                                            </td>
+                                            <td>${vuln.qid != null ? vuln.qid : '-'}</td>
+                                            <td class="qualys-truncate" title="${vuln.title}">${vuln.title != null ? vuln.title : '-'}</td>
+                                            <td class="qualys-mono">${vuln.packageName != null ? vuln.packageName : '-'}</td>
+                                            <td class="qualys-mono">${vuln.installedVersion != null ? vuln.installedVersion : '-'}</td>
+                                            <td class="qualys-mono">${vuln.fixedVersion != null ? vuln.fixedVersion : '-'}</td>
+                                            <td>
+                                                <j:forEach var="cve" items="${vuln.cves}" varStatus="cveStatus">
+                                                    <a class="qualys-cve-link" href="https://nvd.nist.gov/vuln/detail/${cve}" target="_blank">${cve}</a>
+                                                    <j:if test="${!cveStatus.last}">, </j:if>
+                                                </j:forEach>
+                                                <j:if test="${vuln.cves.isEmpty()}">-</j:if>
+                                            </td>
+                                            <td>
+                                                <j:choose>
+                                                    <j:when test="${vuln.qdsScore > 0}">
+                                                        <span class="qualys-qds ${vuln.qdsScore >= 70 ? 'high' : (vuln.qdsScore >= 40 ? 'medium' : 'low')}">
+                                                            ${vuln.qdsScore}
+                                                        </span>
+                                                    </j:when>
+                                                    <j:otherwise>-</j:otherwise>
+                                                </j:choose>
+                                            </td>
+                                        </tr>
+                                    </j:forEach>
+                                </tbody>
+                            </table>
+                        </j:if>
+                        <j:if test="${it.totalVulnerabilities == 0}">
+                            <p class="qualys-success-text">No vulnerabilities detected.</p>
+                        </j:if>
+                    </div>
+
+                    <!-- Software Packages (SBOM) -->
+                    <div class="qualys-card">
+                        <h2>Software Packages (${it.totalPackages})</h2>
+
+                        <j:if test="${it.totalPackages > 0}">
+                            <table class="qualys-table qualys-package-table">
+                                <thead>
+                                    <tr>
+                                        <th>Package Name</th>
+                                        <th>Version</th>
+                                        <th>Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <j:forEach var="pkg" items="${it.packages}">
+                                        <tr>
+                                            <td>${pkg.name}</td>
+                                            <td>${pkg.version != null ? pkg.version : '-'}</td>
+                                            <td>${pkg.type != null ? pkg.type : '-'}</td>
+                                        </tr>
+                                    </j:forEach>
+                                </tbody>
+                            </table>
+                        </j:if>
+                        <j:if test="${it.totalPackages == 0}">
+                            <p class="qualys-muted-text">No packages detected.</p>
+                        </j:if>
+                    </div>
+                </j:if>
+
+                <!-- Fallback for no detailed report -->
+                <j:if test="${!it.hasDetailedReport()}">
+                    <div class="qualys-card">
+                        <h2>Vulnerability Summary</h2>
+                        <table class="qualys-table">
+                            <tr>
+                                <td><span class="qualys-badge critical">Critical</span></td>
+                                <td>${it.criticalCount}</td>
+                            </tr>
+                            <tr>
+                                <td><span class="qualys-badge high">High</span></td>
+                                <td>${it.highCount}</td>
+                            </tr>
+                            <tr>
+                                <td><span class="qualys-badge medium">Medium</span></td>
+                                <td>${it.mediumCount}</td>
+                            </tr>
+                            <tr>
+                                <td><span class="qualys-badge low">Low</span></td>
+                                <td>${it.lowCount}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </j:if>
+
+                <!-- Report Links -->
+                <j:if test="${it.reportPath != null}">
+                    <div class="qualys-card">
+                        <h2>Reports</h2>
+                        <p>
+                            <a href="${rootURL}/job/${it.run.parent.name}/${it.run.number}/artifact/qualys-scan-results/" class="qualys-cve-link">
+                                Download Scan Reports (SARIF, JSON, SBOM)
+                            </a>
+                        </p>
+                    </div>
+                </j:if>
             </div>
-
-            <h2>Vulnerability Breakdown</h2>
-            <table class="pane bigtable" style="width: 50%;">
-                <tr>
-                    <th>Severity</th>
-                    <th>Count</th>
-                </tr>
-                <tr>
-                    <td style="background-color: #d9534f; color: white;">Critical</td>
-                    <td>${it.criticalCount}</td>
-                </tr>
-                <tr>
-                    <td style="background-color: #f0ad4e; color: white;">High</td>
-                    <td>${it.highCount}</td>
-                </tr>
-                <tr>
-                    <td style="background-color: #f7dc6f;">Medium</td>
-                    <td>${it.mediumCount}</td>
-                </tr>
-                <tr>
-                    <td style="background-color: #5bc0de;">Low</td>
-                    <td>${it.lowCount}</td>
-                </tr>
-            </table>
-
-            <j:if test="${it.reportPath != null}">
-                <h2>Report</h2>
-                <p>
-                    <a href="${rootURL}/job/${it.run.parent.name}/${it.run.number}/artifact/qualys-reports/">
-                        View Scan Reports
-                    </a>
-                </p>
-            </j:if>
 
         </l:main-panel>
     </l:layout>

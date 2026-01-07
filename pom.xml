@@ -103,6 +103,12 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Script Security (for @Whitelisted annotation) -->
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>script-security</artifactId>
+        </dependency>
+
         <!-- JSON Processing -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
@@ -122,6 +128,13 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-compress</artifactId>
             <version>1.26.0</version>
+        </dependency>
+
+        <!-- Commons IO (explicit version to satisfy enforcer) -->
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.15.1</version>
         </dependency>
 
         <!-- Testing -->

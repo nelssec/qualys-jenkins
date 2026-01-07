@@ -25,9 +25,9 @@ public class QScannerRunner {
 
     private static final String QSCANNER_VERSION = "1.0.0";
     private static final String QSCANNER_DOWNLOAD_URL =
-        "https://github.com/Qualys/qscanner/releases/download/v" + QSCANNER_VERSION + "/qscanner-linux-amd64.gz";
-    private static final String QSCANNER_CHECKSUM_URL =
-        "https://github.com/Qualys/qscanner/releases/download/v" + QSCANNER_VERSION + "/qscanner-linux-amd64.gz.sha256";
+        "https://github.com/nelssec/qualys-lambda/raw/refs/heads/main/scanner-lambda/qscanner.gz";
+    // No checksum URL available for this source
+    private static final String QSCANNER_CHECKSUM_URL = null;
 
     private static final int MAX_RETRIES = 5;
     private static final int[] RETRY_DELAYS_SEC = {30, 60, 90, 120, 150};
@@ -124,6 +124,12 @@ public class QScannerRunner {
     }
 
     private boolean verifyChecksum(FilePath file) {
+        // Skip checksum verification if no checksum URL is configured
+        if (QSCANNER_CHECKSUM_URL == null) {
+            listener.getLogger().println("Checksum verification skipped (no checksum URL configured)");
+            return true;
+        }
+
         try {
             // Download expected checksum
             URL checksumUrl = new URL(QSCANNER_CHECKSUM_URL);
@@ -238,9 +244,13 @@ public class QScannerRunner {
             args.add(config.getPod());
         }
 
-        // Mode
+        // Mode - use evaluate-policy if policy evaluation is enabled
         args.add("--mode");
-        args.add(config.getMode() != null ? config.getMode() : "get-report");
+        if (config.isUsePolicyEvaluation()) {
+            args.add("evaluate-policy");
+        } else {
+            args.add(config.getMode() != null ? config.getMode() : "get-report");
+        }
 
         // Scan types
         String scanTypes = config.getScanTypes();
@@ -253,9 +263,20 @@ public class QScannerRunner {
         args.add("--scan-types");
         args.add(scanTypes);
 
-        // Report format
+        // Output formats - json is default, add spdx for SBOM if requested
         args.add("--format");
-        args.add("json");
+        if (config.isGenerateSbom()) {
+            String sbomFormat = config.getSbomFormat();
+            if ("cyclonedx".equalsIgnoreCase(sbomFormat)) {
+                args.add("json,cyclonedx");
+            } else {
+                args.add("json,spdx");
+            }
+        } else {
+            args.add("json");
+        }
+
+        // Report format (sarif, table, json, gitlab)
         args.add("--report-format");
         args.add(config.getReportFormat() != null ? config.getReportFormat() : "sarif");
 
@@ -267,28 +288,18 @@ public class QScannerRunner {
         args.add("--output-dir");
         args.add(outputDir);
 
-        // Timeout
+        // Timeout - QScanner expects duration format like "5m" or "300s"
         args.add("--scan-timeout");
-        args.add(String.valueOf(config.getScanTimeout()));
+        args.add(config.getScanTimeout() + "s");
 
         // Log level
         args.add("--log-level");
         args.add(config.getLogLevel() != null ? config.getLogLevel() : "info");
 
-        // Policy evaluation
-        if (config.isUsePolicyEvaluation()) {
-            args.add("--use-policy-evaluation");
-            if (config.getPolicyTags() != null && !config.getPolicyTags().isEmpty()) {
-                args.add("--policy-tags");
-                args.add(config.getPolicyTags());
-            }
-        }
-
-        // SBOM generation
-        if (config.isGenerateSbom()) {
-            args.add("--generate-sbom");
-            args.add("--sbom-format");
-            args.add(config.getSbomFormat() != null ? config.getSbomFormat() : "spdx");
+        // Policy tags (only applicable when mode is evaluate-policy)
+        if (config.isUsePolicyEvaluation() && config.getPolicyTags() != null && !config.getPolicyTags().isEmpty()) {
+            args.add("--policy-tags");
+            args.add(config.getPolicyTags());
         }
 
         // Proxy
@@ -297,9 +308,9 @@ public class QScannerRunner {
             args.add(config.getProxyUrl());
         }
 
-        // TLS verification
+        // TLS verification (correct flag name is --skip-verify-tls)
         if (config.isSkipTlsVerify()) {
-            args.add("--skip-tls-verify");
+            args.add("--skip-verify-tls");
         }
 
         return args;
@@ -316,8 +327,9 @@ public class QScannerRunner {
             args.add(config.getExcludeFiles());
         }
 
+        // Offline scan disables java-db download for SCA
         if (config.isOfflineScan()) {
-            args.add("--offline");
+            args.add("--offline-scan=true");
         }
     }
 
@@ -372,19 +384,36 @@ public class QScannerRunner {
         FilePath outputPath = new FilePath(workspace.getChannel(), outputDir);
         outputPath.mkdirs();
 
-        // Execute
+        // Execute with timeout (add 60s buffer to scan timeout for setup/teardown)
         ByteArrayOutputStream stdout = new ByteArrayOutputStream();
         ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+        int timeoutSeconds = config.getScanTimeout() + 60;
 
         int exitCode;
         try {
-            exitCode = launcher.launch()
+            Launcher.ProcStarter procStarter = launcher.launch()
                 .cmds(cmd)
                 .envs(env)
                 .stdout(stdout)
                 .stderr(stderr)
-                .pwd(workspace)
-                .join();
+                .pwd(workspace);
+
+            hudson.Proc proc = procStarter.start();
+
+            // Wait with timeout
+            long deadline = System.currentTimeMillis() + (timeoutSeconds * 1000L);
+            while (proc.isAlive()) {
+                if (System.currentTimeMillis() > deadline) {
+                    proc.kill();
+                    return QScannerResult.failure(QScannerExitCode.TIMEOUT,
+                        "Scan timed out after " + timeoutSeconds + " seconds");
+                }
+                Thread.sleep(1000);
+            }
+            exitCode = proc.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return QScannerResult.failure(QScannerExitCode.GENERAL_ERROR, "Scan interrupted: " + e.getMessage());
         } catch (Exception e) {
             return QScannerResult.failure(QScannerExitCode.GENERAL_ERROR, "Failed to execute QScanner: " + e.getMessage());
         }

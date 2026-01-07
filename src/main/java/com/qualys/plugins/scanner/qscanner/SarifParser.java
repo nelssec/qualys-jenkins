@@ -4,195 +4,376 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.qualys.plugins.scanner.types.PackageInfo;
+import com.qualys.plugins.scanner.types.ScanReportDetails;
+import com.qualys.plugins.scanner.types.Vulnerability;
 import com.qualys.plugins.scanner.types.VulnerabilitySummary;
 import hudson.FilePath;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * Parser for SARIF (Static Analysis Results Interchange Format) reports.
- * Matches the parsing logic from qualys-ado QScannerRunner.parseSarifReport().
+ * Parser for SARIF (Static Analysis Results Interchange Format) reports from Qualys.
  *
- * Severity mapping (Qualys standard):
- * 5 = Critical
- * 4 = High
- * 3 = Medium
- * 2 = Low
- * 1 = Informational
+ * Qualys SARIF structure:
+ * - Rules contain: cve-ids, qds, severity, shortDescription
+ * - Results contain: QID, vulnerableSoftware[] with name/installedVersion/fixedVersion
  */
 public class SarifParser {
 
-    /**
-     * Maps SARIF level to Qualys severity value.
-     * Note: 'error' maps to Critical (5) to match qualys-ado behavior.
-     */
     private static final Map<String, Integer> LEVEL_TO_SEVERITY = new HashMap<>();
 
     static {
-        LEVEL_TO_SEVERITY.put("error", 5);      // Critical (matches qualys-ado)
+        LEVEL_TO_SEVERITY.put("error", 5);      // Critical
         LEVEL_TO_SEVERITY.put("warning", 3);    // Medium
         LEVEL_TO_SEVERITY.put("note", 2);       // Low
         LEVEL_TO_SEVERITY.put("none", 1);       // Info
     }
 
     /**
-     * Parse a SARIF file and extract vulnerability summary.
+     * Parse a SARIF file and extract vulnerability summary only.
      */
     public static VulnerabilitySummary parse(FilePath sarifFile) throws IOException, InterruptedException {
+        return parseDetailed(sarifFile).getVulnerabilitySummary();
+    }
+
+    /**
+     * Parse a SARIF file and extract full detailed report.
+     */
+    public static ScanReportDetails parseDetailed(FilePath sarifFile) throws IOException, InterruptedException {
+        ScanReportDetails details = new ScanReportDetails();
         VulnerabilitySummary summary = new VulnerabilitySummary();
+        Set<String> seenPackages = new HashSet<>();
 
         try (InputStreamReader reader = new InputStreamReader(sarifFile.read(), StandardCharsets.UTF_8)) {
             JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
 
-            JsonArray runs = root.getAsJsonArray("runs");
+            JsonArray runs = getArrayOrNull(root, "runs");
             if (runs == null || runs.isEmpty()) {
-                return summary;
+                details.setVulnerabilitySummary(summary);
+                return details;
             }
 
             for (JsonElement runElement : runs) {
+                if (!runElement.isJsonObject()) continue;
                 JsonObject run = runElement.getAsJsonObject();
 
-                // Build rule severity map
-                Map<String, Integer> ruleSeverityMap = buildRuleSeverityMap(run);
+                // Extract image/target info
+                extractTargetInfo(run, details);
+
+                // Build rule info map (contains CVEs, QDS, severity, description)
+                Map<String, RuleInfo> ruleInfoMap = buildRuleInfoMap(run);
 
                 // Process results
-                JsonArray results = run.getAsJsonArray("results");
+                JsonArray results = getArrayOrNull(run, "results");
                 if (results != null) {
                     for (JsonElement resultElement : results) {
+                        if (!resultElement.isJsonObject()) continue;
                         JsonObject result = resultElement.getAsJsonObject();
-                        int severity = getSeverityFromResult(result, ruleSeverityMap);
-                        summary.increment(severity);
+                        List<Vulnerability> vulns = parseVulnerabilities(result, ruleInfoMap);
+
+                        for (Vulnerability vuln : vulns) {
+                            summary.increment(vuln.getSeverityLevel());
+                            details.addVulnerability(vuln);
+
+                            // Track packages
+                            if (vuln.getPackageName() != null && !vuln.getPackageName().isEmpty()) {
+                                String pkgKey = vuln.getPackageName() + ":" + vuln.getInstalledVersion();
+                                if (!seenPackages.contains(pkgKey)) {
+                                    seenPackages.add(pkgKey);
+                                    PackageInfo pkg = new PackageInfo();
+                                    pkg.setName(vuln.getPackageName());
+                                    pkg.setVersion(vuln.getInstalledVersion());
+                                    details.addPackage(pkg);
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
 
-        return summary;
+        details.setVulnerabilitySummary(summary);
+        details.setTotalPackages(details.getPackages().size());
+        return details;
     }
 
     /**
-     * Parse a SARIF file and extract vulnerability summary from a file path string.
+     * Parse a SARIF file from a file path string.
      */
     public static VulnerabilitySummary parse(String sarifFilePath) throws IOException, InterruptedException {
         return parse(new FilePath(new java.io.File(sarifFilePath)));
     }
 
-    private static Map<String, Integer> buildRuleSeverityMap(JsonObject run) {
-        Map<String, Integer> map = new HashMap<>();
+    /**
+     * Parse detailed report from a file path string.
+     */
+    public static ScanReportDetails parseDetailed(String sarifFilePath) throws IOException, InterruptedException {
+        return parseDetailed(new FilePath(new java.io.File(sarifFilePath)));
+    }
 
-        JsonObject tool = run.getAsJsonObject("tool");
-        if (tool == null) return map;
+    private static void extractTargetInfo(JsonObject run, ScanReportDetails details) {
+        // Try run properties
+        JsonObject runProps = getObjectOrNull(run, "properties");
+        if (runProps != null) {
+            details.setImageId(getStringOrNull(runProps, "imageId"));
+            details.setImageDigest(getStringOrNull(runProps, "imageDigest"));
+            details.setOperatingSystem(getStringOrNull(runProps, "os"));
+            if (details.getOperatingSystem() == null) {
+                details.setOperatingSystem(getStringOrNull(runProps, "operatingSystem"));
+            }
+            details.setImageName(getStringOrNull(runProps, "imageName"));
+        }
 
-        JsonObject driver = tool.getAsJsonObject("driver");
-        if (driver == null) return map;
-
-        JsonArray rules = driver.getAsJsonArray("rules");
-        if (rules == null) return map;
-
-        for (JsonElement ruleElement : rules) {
-            JsonObject rule = ruleElement.getAsJsonObject();
-            String ruleId = getStringOrNull(rule, "id");
-            if (ruleId == null) continue;
-
-            // Try to get severity from properties
-            int severity = 1; // Default to info
-
-            JsonObject properties = rule.getAsJsonObject("properties");
-            if (properties != null) {
-                String severityStr = getStringOrNull(properties, "severity");
-                if (severityStr != null) {
-                    severity = parseSeverityString(severityStr);
-                } else {
-                    // Try numeric security-severity
-                    JsonElement secSeverity = properties.get("security-severity");
-                    if (secSeverity != null && !secSeverity.isJsonNull()) {
-                        try {
-                            double score = secSeverity.getAsDouble();
-                            severity = cvssToSeverity(score);
-                        } catch (Exception ignored) {
+        // Try artifacts for image info
+        JsonArray artifacts = getArrayOrNull(run, "artifacts");
+        if (artifacts != null && !artifacts.isEmpty()) {
+            JsonElement firstArtifact = artifacts.get(0);
+            if (firstArtifact.isJsonObject()) {
+                JsonObject artifact = firstArtifact.getAsJsonObject();
+                JsonObject location = getObjectOrNull(artifact, "location");
+                if (location != null && details.getImageName() == null) {
+                    details.setImageName(getStringOrNull(location, "uri"));
+                }
+                JsonObject artifactProps = getObjectOrNull(artifact, "properties");
+                if (artifactProps != null) {
+                    if (details.getImageId() == null) {
+                        details.setImageId(getStringOrNull(artifactProps, "imageId"));
+                    }
+                    if (details.getImageDigest() == null) {
+                        details.setImageDigest(getStringOrNull(artifactProps, "repoDigest"));
+                        if (details.getImageDigest() == null) {
+                            details.setImageDigest(getStringOrNull(artifactProps, "imageDigest"));
+                        }
+                    }
+                    if (details.getOperatingSystem() == null) {
+                        String osName = getStringOrNull(artifactProps, "osName");
+                        String osVersion = getStringOrNull(artifactProps, "osVersion");
+                        if (osName != null) {
+                            details.setOperatingSystem(osName);
+                            details.setOsVersion(osVersion);
                         }
                     }
                 }
             }
+        }
+    }
 
-            // Fallback to defaultConfiguration level
-            if (severity == 1) {
-                JsonObject defaultConfig = rule.getAsJsonObject("defaultConfiguration");
+    /**
+     * Parse vulnerabilities from a single result.
+     * Qualys can have multiple vulnerable packages per result, so we create one Vulnerability per package.
+     */
+    private static List<Vulnerability> parseVulnerabilities(JsonObject result, Map<String, RuleInfo> ruleInfoMap) {
+        List<Vulnerability> vulns = new ArrayList<>();
+
+        String ruleId = getStringOrNull(result, "ruleId");
+        RuleInfo ruleInfo = ruleId != null ? ruleInfoMap.get(ruleId) : null;
+
+        // Get message/title
+        String title = null;
+        JsonObject message = getObjectOrNull(result, "message");
+        if (message != null) {
+            title = getStringOrNull(message, "text");
+        }
+
+        // Get result properties
+        JsonObject props = getObjectOrNull(result, "properties");
+
+        // Get QID from properties or ruleId
+        String qid = ruleId;
+        if (props != null) {
+            JsonElement qidElem = props.get("QID");
+            if (qidElem != null && !qidElem.isJsonNull()) {
+                try {
+                    qid = String.valueOf(qidElem.getAsInt());
+                } catch (Exception ignored) {}
+            }
+        }
+
+        // Check for vulnerableSoftware array (Qualys format)
+        JsonArray vulnerableSoftware = props != null ? getArrayOrNull(props, "vulnerableSoftware") : null;
+
+        if (vulnerableSoftware != null && vulnerableSoftware.size() > 0) {
+            // Create one vulnerability entry per affected package
+            for (JsonElement swElem : vulnerableSoftware) {
+                if (!swElem.isJsonObject()) continue;
+                JsonObject sw = swElem.getAsJsonObject();
+                Vulnerability vuln = createVulnerability(qid, title, ruleInfo, result);
+
+                vuln.setPackageName(getStringOrNull(sw, "name"));
+                vuln.setInstalledVersion(getStringOrNull(sw, "installedVersion"));
+                vuln.setFixedVersion(getStringOrNull(sw, "fixedVersion"));
+
+                vulns.add(vuln);
+            }
+        } else {
+            // No vulnerableSoftware array, create single vulnerability
+            Vulnerability vuln = createVulnerability(qid, title, ruleInfo, result);
+
+            // Try to get package info from flat properties
+            if (props != null) {
+                vuln.setPackageName(getStringOrNull(props, "packageName"));
+                if (vuln.getPackageName() == null) {
+                    vuln.setPackageName(getStringOrNull(props, "affectedPackage"));
+                }
+                vuln.setInstalledVersion(getStringOrNull(props, "installedVersion"));
+                if (vuln.getInstalledVersion() == null) {
+                    vuln.setInstalledVersion(getStringOrNull(props, "packageVersion"));
+                }
+                vuln.setFixedVersion(getStringOrNull(props, "fixedVersion"));
+            }
+
+            vulns.add(vuln);
+        }
+
+        return vulns;
+    }
+
+    private static Vulnerability createVulnerability(String qid, String title, RuleInfo ruleInfo, JsonObject result) {
+        Vulnerability vuln = new Vulnerability();
+        vuln.setQid(qid);
+        vuln.setTitle(title);
+
+        // Get severity and other info from rule
+        if (ruleInfo != null) {
+            vuln.setSeverityLevel(ruleInfo.severityLevel);
+            vuln.setSeverity(severityLevelToString(ruleInfo.severityLevel));
+            vuln.setCves(ruleInfo.cves != null ? new ArrayList<>(ruleInfo.cves) : new ArrayList<>());
+            vuln.setQdsScore(ruleInfo.qdsScore);
+
+            if (title == null || title.isEmpty()) {
+                vuln.setTitle(ruleInfo.description);
+            }
+        }
+
+        // Fallback severity from result level
+        if (vuln.getSeverityLevel() == 0) {
+            String level = getStringOrNull(result, "level");
+            if (level != null) {
+                vuln.setSeverityLevel(LEVEL_TO_SEVERITY.getOrDefault(level.toLowerCase(), 1));
+                vuln.setSeverity(severityLevelToString(vuln.getSeverityLevel()));
+            } else {
+                vuln.setSeverityLevel(1);
+                vuln.setSeverity("Info");
+            }
+        }
+
+        return vuln;
+    }
+
+    private static class RuleInfo {
+        String description;
+        int severityLevel;
+        List<String> cves = new ArrayList<>();
+        double qdsScore;
+    }
+
+    private static Map<String, RuleInfo> buildRuleInfoMap(JsonObject run) {
+        Map<String, RuleInfo> map = new HashMap<>();
+
+        JsonObject tool = getObjectOrNull(run, "tool");
+        if (tool == null) return map;
+
+        JsonObject driver = getObjectOrNull(tool, "driver");
+        if (driver == null) return map;
+
+        JsonArray rules = getArrayOrNull(driver, "rules");
+        if (rules == null) return map;
+
+        for (JsonElement ruleElement : rules) {
+            if (!ruleElement.isJsonObject()) continue;
+            JsonObject rule = ruleElement.getAsJsonObject();
+            String ruleId = getStringOrNull(rule, "id");
+            if (ruleId == null) continue;
+
+            RuleInfo info = new RuleInfo();
+
+            // Get description from shortDescription
+            JsonObject shortDesc = getObjectOrNull(rule, "shortDescription");
+            if (shortDesc != null) {
+                info.description = getStringOrNull(shortDesc, "text");
+            }
+
+            // Get properties (severity, cve-ids, qds)
+            JsonObject properties = getObjectOrNull(rule, "properties");
+            if (properties != null) {
+                // Severity - Qualys uses numeric severity (5=Critical, 4=High, 3=Medium, 2=Low, 1=Info)
+                JsonElement severityElem = properties.get("severity");
+                if (severityElem == null) {
+                    severityElem = properties.get("customerSeverity");
+                }
+                if (severityElem != null && !severityElem.isJsonNull()) {
+                    try {
+                        int sev = severityElem.getAsInt();
+                        // Qualys uses 5=Critical, 4=High, 3=Medium, 2=Low, 1=Info
+                        // But sometimes 4=High is highest, map accordingly
+                        if (sev >= 4) {
+                            info.severityLevel = 5; // Critical
+                        } else if (sev == 3) {
+                            info.severityLevel = 3; // Medium
+                        } else if (sev == 2) {
+                            info.severityLevel = 2; // Low
+                        } else {
+                            info.severityLevel = 1; // Info
+                        }
+                    } catch (Exception ignored) {}
+                }
+
+                // CVEs - Qualys uses "cve-ids" array
+                JsonArray cveIds = getArrayOrNull(properties, "cve-ids");
+                if (cveIds != null) {
+                    for (JsonElement cve : cveIds) {
+                        if (!cve.isJsonNull()) {
+                            try {
+                                info.cves.add(cve.getAsString());
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
+
+                // QDS score - Qualys stores as string
+                JsonElement qdsElem = properties.get("qds");
+                if (qdsElem != null && !qdsElem.isJsonNull()) {
+                    try {
+                        String qdsStr = qdsElem.getAsString();
+                        info.qdsScore = Double.parseDouble(qdsStr);
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            // Fallback severity from defaultConfiguration level
+            if (info.severityLevel == 0) {
+                JsonObject defaultConfig = getObjectOrNull(rule, "defaultConfiguration");
                 if (defaultConfig != null) {
                     String level = getStringOrNull(defaultConfig, "level");
                     if (level != null) {
-                        severity = LEVEL_TO_SEVERITY.getOrDefault(level.toLowerCase(), 1);
+                        info.severityLevel = LEVEL_TO_SEVERITY.getOrDefault(level.toLowerCase(), 1);
                     }
                 }
             }
 
-            map.put(ruleId, severity);
+            map.put(ruleId, info);
         }
 
         return map;
     }
 
-    private static int getSeverityFromResult(JsonObject result, Map<String, Integer> ruleSeverityMap) {
-        // First try result.properties.severity
-        JsonObject properties = result.getAsJsonObject("properties");
-        if (properties != null) {
-            String severityStr = getStringOrNull(properties, "severity");
-            if (severityStr != null) {
-                return parseSeverityString(severityStr);
-            }
+    private static String severityLevelToString(int level) {
+        switch (level) {
+            case 5: return "Critical";
+            case 4: return "High";
+            case 3: return "Medium";
+            case 2: return "Low";
+            default: return "Info";
         }
-
-        // Try rule lookup
-        String ruleId = getStringOrNull(result, "ruleId");
-        if (ruleId != null && ruleSeverityMap.containsKey(ruleId)) {
-            return ruleSeverityMap.get(ruleId);
-        }
-
-        // Fallback to result level
-        String level = getStringOrNull(result, "level");
-        if (level != null) {
-            return LEVEL_TO_SEVERITY.getOrDefault(level.toLowerCase(), 1);
-        }
-
-        return 1; // Default to info
-    }
-
-    private static int parseSeverityString(String severity) {
-        if (severity == null) return 1;
-
-        switch (severity.toLowerCase()) {
-            case "critical":
-                return 5;
-            case "high":
-                return 4;
-            case "medium":
-                return 3;
-            case "low":
-                return 2;
-            case "informational":
-            case "info":
-            default:
-                return 1;
-        }
-    }
-
-    /**
-     * Convert CVSS score to severity level.
-     * Critical: 9.0-10.0
-     * High: 7.0-8.9
-     * Medium: 4.0-6.9
-     * Low: 0.1-3.9
-     */
-    private static int cvssToSeverity(double score) {
-        if (score >= 9.0) return 5;
-        if (score >= 7.0) return 4;
-        if (score >= 4.0) return 3;
-        if (score >= 0.1) return 2;
-        return 1;
     }
 
     private static String getStringOrNull(JsonObject obj, String key) {
@@ -201,5 +382,21 @@ public class SarifParser {
             return null;
         }
         return element.getAsString();
+    }
+
+    private static JsonArray getArrayOrNull(JsonObject obj, String key) {
+        JsonElement element = obj.get(key);
+        if (element == null || element.isJsonNull() || !element.isJsonArray()) {
+            return null;
+        }
+        return element.getAsJsonArray();
+    }
+
+    private static JsonObject getObjectOrNull(JsonObject obj, String key) {
+        JsonElement element = obj.get(key);
+        if (element == null || element.isJsonNull() || !element.isJsonObject()) {
+            return null;
+        }
+        return element.getAsJsonObject();
     }
 }

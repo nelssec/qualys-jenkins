@@ -1,0 +1,6 @@
+<?jelly escape-by-default='true'?>
+<div>
+    Integrate Qualys container and code security scanning into Jenkins pipelines.
+    Supports container image scanning, code/repository scanning, policy evaluation,
+    threshold-based gating, SARIF reports, SBOM generation, and Jira integration.
+</div>
