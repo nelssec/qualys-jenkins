@@ -1,0 +1,23 @@
+<?jelly escape='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler">
+    <table>
+        <tr>
+            <td>
+                <img src="${rootURL}/plugin/qualys-scanner/images/qualys-icon.png"
+                     alt="Qualys" width="24" height="24"/>
+            </td>
+            <td style="vertical-align: middle;">
+                <a href="${it.urlName}">Qualys Scan:</a>
+                <j:choose>
+                    <j:when test="${it.scanPassed}">
+                        <span style="color: green;">PASSED</span>
+                    </j:when>
+                    <j:otherwise>
+                        <span style="color: red;">FAILED</span>
+                    </j:otherwise>
+                </j:choose>
+                - ${it.summary}
+            </td>
+        </tr>
+    </table>
+</j:jelly>

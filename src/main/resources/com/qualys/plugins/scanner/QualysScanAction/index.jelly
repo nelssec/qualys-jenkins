@@ -1,0 +1,77 @@
+<?jelly escape='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define"
+         xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+
+    <l:layout title="Qualys Scan Results">
+        <l:side-panel>
+            <st:include page="sidepanel.jelly" it="${it.run}"/>
+        </l:side-panel>
+        <l:main-panel>
+            <h1>Qualys Security Scan Results</h1>
+
+            <div class="qualys-scan-summary">
+                <table class="pane bigtable" style="width: 100%;">
+                    <tr>
+                        <th colspan="2">Scan Summary</th>
+                    </tr>
+                    <tr>
+                        <td>Status</td>
+                        <td>
+                            <j:choose>
+                                <j:when test="${it.scanPassed}">
+                                    <span style="color: green; font-weight: bold;">PASSED</span>
+                                </j:when>
+                                <j:otherwise>
+                                    <span style="color: red; font-weight: bold;">FAILED</span>
+                                </j:otherwise>
+                            </j:choose>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Policy Result</td>
+                        <td>${it.policyResult}</td>
+                    </tr>
+                    <tr>
+                        <td>Total Vulnerabilities</td>
+                        <td>${it.totalVulnerabilities}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <h2>Vulnerability Breakdown</h2>
+            <table class="pane bigtable" style="width: 50%;">
+                <tr>
+                    <th>Severity</th>
+                    <th>Count</th>
+                </tr>
+                <tr>
+                    <td style="background-color: #d9534f; color: white;">Critical</td>
+                    <td>${it.criticalCount}</td>
+                </tr>
+                <tr>
+                    <td style="background-color: #f0ad4e; color: white;">High</td>
+                    <td>${it.highCount}</td>
+                </tr>
+                <tr>
+                    <td style="background-color: #f7dc6f;">Medium</td>
+                    <td>${it.mediumCount}</td>
+                </tr>
+                <tr>
+                    <td style="background-color: #5bc0de;">Low</td>
+                    <td>${it.lowCount}</td>
+                </tr>
+            </table>
+
+            <j:if test="${it.reportPath != null}">
+                <h2>Report</h2>
+                <p>
+                    <a href="${rootURL}/job/${it.run.parent.name}/${it.run.number}/artifact/qualys-reports/">
+                        View Scan Reports
+                    </a>
+                </p>
+            </j:if>
+
+        </l:main-panel>
+    </l:layout>
+
+</j:jelly>

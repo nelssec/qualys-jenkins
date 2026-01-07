@@ -1,0 +1,172 @@
+<?jelly escape='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define"
+         xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+
+    <f:section title="Connection Settings">
+        <f:entry title="Qualys Credentials" field="credentialsId">
+            <f:select/>
+        </f:entry>
+    </f:section>
+
+    <f:section title="Scan Target">
+        <f:entry title="Scan Type" field="scanType">
+            <f:select/>
+        </f:entry>
+
+        <f:entry title="Image ID" field="imageId"
+                 description="Container image to scan (e.g., myapp:latest, registry/image:tag). Supports environment variables.">
+            <f:textbox/>
+        </f:entry>
+
+        <f:entry title="Storage Driver" field="storageDriver"
+                 description="Container runtime storage driver">
+            <f:select/>
+        </f:entry>
+
+        <f:entry title="Platform" field="platform"
+                 description="Target platform for multi-arch images (e.g., linux/amd64)">
+            <f:textbox/>
+        </f:entry>
+
+        <f:entry title="Scan Path" field="scanPath"
+                 description="Path to scan for code/rootfs scans. Defaults to workspace.">
+            <f:textbox/>
+        </f:entry>
+
+        <f:entry title="Exclude Directories" field="excludeDirs"
+                 description="Comma-separated list of directories to exclude from code scan">
+            <f:textbox/>
+        </f:entry>
+
+        <f:entry title="Exclude Files" field="excludeFiles"
+                 description="Comma-separated list of file patterns to exclude from code scan">
+            <f:textbox/>
+        </f:entry>
+    </f:section>
+
+    <f:section title="Scan Options">
+        <f:entry title="Scan Types" field="scanTypes"
+                 description="Comma-separated scan types: pkg, secret, malware, fileinsight, compliance">
+            <f:textbox default="pkg"/>
+        </f:entry>
+
+        <f:entry title="Scan Secrets" field="scanSecrets">
+            <f:checkbox/>
+        </f:entry>
+
+        <f:entry title="Scan Malware" field="scanMalware">
+            <f:checkbox/>
+        </f:entry>
+
+        <f:entry title="Scan Timeout (seconds)" field="scanTimeout">
+            <f:number default="300" min="30" max="3600"/>
+        </f:entry>
+
+        <f:entry title="Offline Scan" field="offlineScan"
+                 description="Perform offline scan without network access">
+            <f:checkbox/>
+        </f:entry>
+    </f:section>
+
+    <f:section title="SBOM Generation">
+        <f:entry title="Generate SBOM" field="generateSbom">
+            <f:checkbox/>
+        </f:entry>
+
+        <f:entry title="SBOM Format" field="sbomFormat">
+            <f:select/>
+        </f:entry>
+    </f:section>
+
+    <f:section title="Policy Evaluation">
+        <f:entry title="Use Policy Evaluation" field="usePolicyEvaluation"
+                 description="Use Qualys cloud-based policy evaluation instead of local thresholds">
+            <f:checkbox/>
+        </f:entry>
+
+        <f:entry title="Policy Tags" field="policyTags"
+                 description="Comma-separated policy tags to match">
+            <f:textbox/>
+        </f:entry>
+    </f:section>
+
+    <f:section title="Vulnerability Thresholds">
+        <f:description>
+            Set maximum allowed vulnerabilities by severity. Use -1 for unlimited.
+            Ignored when Policy Evaluation is enabled.
+        </f:description>
+
+        <f:entry title="Max Critical" field="maxCritical">
+            <f:number default="0" min="-1"/>
+        </f:entry>
+
+        <f:entry title="Max High" field="maxHigh">
+            <f:number default="0" min="-1"/>
+        </f:entry>
+
+        <f:entry title="Max Medium" field="maxMedium">
+            <f:number default="-1" min="-1"/>
+        </f:entry>
+
+        <f:entry title="Max Low" field="maxLow">
+            <f:number default="-1" min="-1"/>
+        </f:entry>
+    </f:section>
+
+    <f:section title="Build Behavior">
+        <f:entry title="Continue on Error" field="continueOnError"
+                 description="Mark build unstable instead of failed when thresholds are exceeded">
+            <f:checkbox/>
+        </f:entry>
+
+        <f:entry title="Publish SARIF Report" field="publishSarif"
+                 description="Archive SARIF report as build artifact">
+            <f:checkbox default="true"/>
+        </f:entry>
+    </f:section>
+
+    <f:section title="Jira Integration">
+        <f:entry title="Create Jira Issues" field="createJiraIssues"
+                 description="Create Jira issues for discovered vulnerabilities">
+            <f:checkbox/>
+        </f:entry>
+
+        <f:entry title="Jira Credentials" field="jiraCredentialsId"
+                 description="Select Jira API credentials for issue creation">
+            <f:select/>
+        </f:entry>
+
+        <f:entry title="Jira Project Key" field="jiraProjectKey"
+                 description="Jira project key where issues will be created (e.g., SEC)">
+            <f:textbox/>
+        </f:entry>
+
+        <f:entry title="Minimum Severity" field="jiraMinSeverity"
+                 description="Only create issues for vulnerabilities at or above this severity">
+            <f:select/>
+        </f:entry>
+
+        <f:entry title="Issue Labels" field="jiraLabels"
+                 description="Comma-separated labels to add to created issues">
+            <f:textbox/>
+        </f:entry>
+
+        <f:entry title="Assignee" field="jiraAssignee"
+                 description="Optional: Jira username to assign issues to">
+            <f:textbox/>
+        </f:entry>
+    </f:section>
+
+    <f:section title="Network Settings">
+        <f:entry title="Proxy URL" field="proxyUrl"
+                 description="HTTP proxy for QScanner (e.g., http://proxy:8080)">
+            <f:textbox/>
+        </f:entry>
+
+        <f:entry title="Skip TLS Verification" field="skipTlsVerify"
+                 description="Skip TLS certificate verification (not recommended for production)">
+            <f:checkbox/>
+        </f:entry>
+    </f:section>
+
+</j:jelly>
