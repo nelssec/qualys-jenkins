@@ -8,20 +8,17 @@ import java.io.Serializable;
 public class QScannerConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    // Connection settings
     private String pod;
     private String accessToken;
     private String proxyUrl;
     private boolean skipTlsVerify;
 
-    // Scan target
     private ScanType scanType;
     private String imageId;
     private String scanPath;
     private String platform;
     private StorageDriver storageDriver;
 
-    // Scan options
     private String scanTypes = "pkg";
     private String mode = "get-report";
     private boolean scanSecrets;
@@ -29,31 +26,26 @@ public class QScannerConfig implements Serializable {
     private int scanTimeout = 300;
     private String logLevel = "info";
 
-    // Code scan options
     private String excludeDirs;
     private String excludeFiles;
     private boolean offlineScan;
     private boolean generateSbom;
     private String sbomFormat = "spdx";
 
-    // Policy options
     private boolean usePolicyEvaluation;
     private String policyTags;
 
-    // Threshold options (when not using policy)
     private int maxCritical = 0;
     private int maxHigh = 0;
-    private int maxMedium = -1;  // -1 means unlimited
+    private int maxMedium = -1;
     private int maxLow = -1;
 
-    // Output options
     private String outputDir;
     private String reportFormat = "sarif";
 
     public QScannerConfig() {
     }
 
-    // Builder pattern
     public static Builder builder() {
         return new Builder();
     }
@@ -206,7 +198,6 @@ public class QScannerConfig implements Serializable {
         }
     }
 
-    // Getters
     public String getPod() { return pod; }
     public String getAccessToken() { return accessToken; }
     public String getProxyUrl() { return proxyUrl; }

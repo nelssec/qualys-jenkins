@@ -62,7 +62,6 @@ public class JiraIssueCreator {
             return 0;
         }
 
-        // Build rule severity map
         Map<String, VulnerabilityInfo> ruleInfoMap = new HashMap<>();
         for (JsonElement runElement : runs) {
             JsonObject run = runElement.getAsJsonObject();
@@ -110,7 +109,6 @@ public class JiraIssueCreator {
                 }
             }
 
-            // Process results
             JsonArray results = run.getAsJsonArray("results");
             if (results != null) {
                 for (JsonElement resultElement : results) {
@@ -119,7 +117,6 @@ public class JiraIssueCreator {
 
                     VulnerabilityInfo info = ruleInfoMap.getOrDefault(ruleId, new VulnerabilityInfo());
 
-                    // Get severity from result properties if available
                     JsonObject resultProps = result.getAsJsonObject("properties");
                     if (resultProps != null) {
                         JsonElement sev = resultProps.get("severity");
@@ -128,18 +125,15 @@ public class JiraIssueCreator {
                         }
                     }
 
-                    // Check minimum severity
                     if (info.severity < minSeverity) {
                         continue;
                     }
 
-                    // Get message
                     JsonObject message = result.getAsJsonObject("message");
                     if (message != null) {
                         info.message = getStringOrNull(message, "text");
                     }
 
-                    // Create issue
                     try {
                         createIssue(info, labels, assignee);
                     } catch (Exception e) {
@@ -156,14 +150,12 @@ public class JiraIssueCreator {
     }
 
     private void createIssue(VulnerabilityInfo info, List<String> labels, String assignee) throws IOException {
-        // Check for existing issue with same vulnerability
         String vulnTag = QUALYS_VULN_TAG + ":" + info.ruleId;
         if (issueExists(vulnTag)) {
             issuesSkipped++;
             return;
         }
 
-        // Build issue
         String severityName = getSeverityName(info.severity);
         String title = String.format("[%s] %s", severityName,
             truncate(info.title != null ? info.title : info.ruleId, 200));
@@ -185,7 +177,6 @@ public class JiraIssueCreator {
         description.append("_Created by Qualys Jenkins Plugin_\n");
         description.append("Tag: {{").append(vulnTag).append("}}");
 
-        // Build labels list
         List<String> allLabels = new ArrayList<>();
         allLabels.add("qualys-vulnerability");
         allLabels.add("severity-" + severityName.toLowerCase());
@@ -193,7 +184,6 @@ public class JiraIssueCreator {
             allLabels.addAll(labels);
         }
 
-        // Create issue via Jira API
         JsonObject issueData = new JsonObject();
         JsonObject fields = new JsonObject();
 

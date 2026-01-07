@@ -85,7 +85,6 @@ public class QualysScanStep extends Step implements Serializable {
         return new QualysScanStepExecution(this, context);
     }
 
-    // Getters
     public String getCredentialsId() { return credentialsId; }
     public String getScanType() { return scanType; }
     public String getImageId() { return imageId; }
@@ -112,7 +111,6 @@ public class QualysScanStep extends Step implements Serializable {
     public String getProxyUrl() { return proxyUrl; }
     public boolean isSkipTlsVerify() { return skipTlsVerify; }
 
-    // Setters
     @DataBoundSetter public void setImageId(String imageId) { this.imageId = imageId; }
     @DataBoundSetter public void setStorageDriver(String storageDriver) { this.storageDriver = storageDriver; }
     @DataBoundSetter public void setPlatform(String platform) { this.platform = platform; }
@@ -185,7 +183,6 @@ public class QualysScanStep extends Step implements Serializable {
 
             listener.getLogger().println("=== Qualys Security Scan (Pipeline) ===");
 
-            // Get credentials
             QualysApiToken credentials = CredentialsProvider.findCredentialById(
                 step.credentialsId, QualysApiToken.class, run, Collections.emptyList());
 
@@ -193,10 +190,7 @@ public class QualysScanStep extends Step implements Serializable {
                 throw new AbortException("Qualys credentials not found: " + step.credentialsId);
             }
 
-            // Build configuration
             QScannerConfig config = buildConfig(credentials, workspace, env);
-
-            // Run scanner
             QScannerRunner runner = new QScannerRunner(config, workspace, launcher, listener);
             runner.setup();
 
@@ -220,7 +214,6 @@ public class QualysScanStep extends Step implements Serializable {
                     throw new AbortException("Unknown scan type: " + step.scanType);
             }
 
-            // Process and return results
             return processResults(run, workspace, listener, result, config);
         }
 
@@ -384,7 +377,6 @@ public class QualysScanStep extends Step implements Serializable {
         private String jsonReportPath;
         private String sbomPath;
 
-        // Getters and setters - @Whitelisted allows pipeline scripts to access these
         @Whitelisted
         public boolean isSuccess() { return success; }
         public void setSuccess(boolean success) { this.success = success; }

@@ -35,28 +35,24 @@ public class ThresholdEvaluator implements Serializable {
         List<String> violations = new ArrayList<>();
         boolean passed = true;
 
-        // Check critical threshold
         if (maxCritical >= 0 && summary.getCritical() > maxCritical) {
             passed = false;
             violations.add(String.format("Critical vulnerabilities (%d) exceed threshold (%d)",
                 summary.getCritical(), maxCritical));
         }
 
-        // Check high threshold
         if (maxHigh >= 0 && summary.getHigh() > maxHigh) {
             passed = false;
             violations.add(String.format("High vulnerabilities (%d) exceed threshold (%d)",
                 summary.getHigh(), maxHigh));
         }
 
-        // Check medium threshold
         if (maxMedium >= 0 && summary.getMedium() > maxMedium) {
             passed = false;
             violations.add(String.format("Medium vulnerabilities (%d) exceed threshold (%d)",
                 summary.getMedium(), maxMedium));
         }
 
-        // Check low threshold
         if (maxLow >= 0 && summary.getLow() > maxLow) {
             passed = false;
             violations.add(String.format("Low vulnerabilities (%d) exceed threshold (%d)",
@@ -66,7 +62,6 @@ public class ThresholdEvaluator implements Serializable {
         return new ThresholdResult(passed, violations, summary);
     }
 
-    // Getters and setters
     public int getMaxCritical() { return maxCritical; }
     public void setMaxCritical(int maxCritical) { this.maxCritical = maxCritical; }
 

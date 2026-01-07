@@ -132,6 +132,18 @@ public class QualysScanAction implements RunAction2 {
         return reportDetails != null ? reportDetails.getPackages() : new ArrayList<>();
     }
 
+    public List<String> getLayers() {
+        return reportDetails != null ? reportDetails.getLayers() : new ArrayList<>();
+    }
+
+    public int getTotalLayers() {
+        return reportDetails != null ? reportDetails.getTotalLayers() : 0;
+    }
+
+    public boolean hasLayers() {
+        return reportDetails != null && reportDetails.hasLayers();
+    }
+
     public boolean hasDetailedReport() {
         return reportDetails != null;
     }

@@ -10,28 +10,26 @@ import java.util.List;
 public class ScanReportDetails implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    // Image metadata
     private String imageId;
     private String imageName;
     private String imageDigest;
     private String operatingSystem;
     private String osVersion;
 
-    // Summary counts
     private VulnerabilitySummary vulnerabilitySummary;
     private int totalPackages;
 
-    // Detailed lists
     private List<Vulnerability> vulnerabilities;
     private List<PackageInfo> packages;
+    private List<String> layers;
 
     public ScanReportDetails() {
         this.vulnerabilities = new ArrayList<>();
         this.packages = new ArrayList<>();
+        this.layers = new ArrayList<>();
         this.vulnerabilitySummary = new VulnerabilitySummary();
     }
 
-    // Getters and Setters
     public String getImageId() { return imageId; }
     public void setImageId(String imageId) { this.imageId = imageId; }
 
@@ -71,7 +69,19 @@ public class ScanReportDetails implements Serializable {
         this.packages.add(pkg);
     }
 
-    // Convenience methods for Jelly
+    public List<String> getLayers() { return layers; }
+    public void setLayers(List<String> layers) { this.layers = layers; }
+
+    public void addLayer(String layerSHA) {
+        if (layerSHA != null && !layerSHA.isEmpty() && !this.layers.contains(layerSHA)) {
+            this.layers.add(layerSHA);
+        }
+    }
+
+    public int getTotalLayers() { return layers.size(); }
+
+    public boolean hasLayers() { return !layers.isEmpty(); }
+
     public List<Vulnerability> getCriticalVulnerabilities() {
         return filterBySeverity(5);
     }

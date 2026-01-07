@@ -12,6 +12,7 @@ public class PackageInfo implements Serializable {
     private String version;
     private String type; // e.g., "deb", "rpm", "npm", "pip", etc.
     private int vulnerabilityCount;
+    private String layerSHA;
 
     public PackageInfo() {
     }
@@ -22,7 +23,6 @@ public class PackageInfo implements Serializable {
         this.type = type;
     }
 
-    // Getters and Setters
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
@@ -34,6 +34,18 @@ public class PackageInfo implements Serializable {
 
     public int getVulnerabilityCount() { return vulnerabilityCount; }
     public void setVulnerabilityCount(int vulnerabilityCount) { this.vulnerabilityCount = vulnerabilityCount; }
+
+    public String getLayerSHA() { return layerSHA; }
+    public void setLayerSHA(String layerSHA) { this.layerSHA = layerSHA; }
+
+    public String getLayerShort() {
+        if (layerSHA == null || layerSHA.isEmpty()) return null;
+        String sha = layerSHA;
+        if (sha.startsWith("sha256:")) {
+            sha = sha.substring(7);
+        }
+        return sha.length() > 12 ? sha.substring(0, 12) : sha;
+    }
 
     @Override
     public String toString() {

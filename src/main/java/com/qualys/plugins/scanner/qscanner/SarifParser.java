@@ -66,13 +66,8 @@ public class SarifParser {
                 if (!runElement.isJsonObject()) continue;
                 JsonObject run = runElement.getAsJsonObject();
 
-                // Extract image/target info
                 extractTargetInfo(run, details);
-
-                // Build rule info map (contains CVEs, QDS, severity, description)
                 Map<String, RuleInfo> ruleInfoMap = buildRuleInfoMap(run);
-
-                // Process results
                 JsonArray results = getArrayOrNull(run, "results");
                 if (results != null) {
                     for (JsonElement resultElement : results) {
@@ -84,7 +79,10 @@ public class SarifParser {
                             summary.increment(vuln.getSeverityLevel());
                             details.addVulnerability(vuln);
 
-                            // Track packages
+                            if (vuln.getLayerSHA() != null && !vuln.getLayerSHA().isEmpty()) {
+                                details.addLayer(vuln.getLayerSHA());
+                            }
+
                             if (vuln.getPackageName() != null && !vuln.getPackageName().isEmpty()) {
                                 String pkgKey = vuln.getPackageName() + ":" + vuln.getInstalledVersion();
                                 if (!seenPackages.contains(pkgKey)) {
@@ -92,6 +90,7 @@ public class SarifParser {
                                     PackageInfo pkg = new PackageInfo();
                                     pkg.setName(vuln.getPackageName());
                                     pkg.setVersion(vuln.getInstalledVersion());
+                                    pkg.setLayerSHA(vuln.getLayerSHA());
                                     details.addPackage(pkg);
                                 }
                             }
@@ -121,7 +120,6 @@ public class SarifParser {
     }
 
     private static void extractTargetInfo(JsonObject run, ScanReportDetails details) {
-        // Try run properties
         JsonObject runProps = getObjectOrNull(run, "properties");
         if (runProps != null) {
             details.setImageId(getStringOrNull(runProps, "imageId"));
@@ -133,7 +131,6 @@ public class SarifParser {
             details.setImageName(getStringOrNull(runProps, "imageName"));
         }
 
-        // Try artifacts for image info
         JsonArray artifacts = getArrayOrNull(run, "artifacts");
         if (artifacts != null && !artifacts.isEmpty()) {
             JsonElement firstArtifact = artifacts.get(0);
@@ -177,17 +174,13 @@ public class SarifParser {
         String ruleId = getStringOrNull(result, "ruleId");
         RuleInfo ruleInfo = ruleId != null ? ruleInfoMap.get(ruleId) : null;
 
-        // Get message/title
         String title = null;
         JsonObject message = getObjectOrNull(result, "message");
         if (message != null) {
             title = getStringOrNull(message, "text");
         }
 
-        // Get result properties
         JsonObject props = getObjectOrNull(result, "properties");
-
-        // Get QID from properties or ruleId
         String qid = ruleId;
         if (props != null) {
             JsonElement qidElem = props.get("QID");
@@ -198,11 +191,9 @@ public class SarifParser {
             }
         }
 
-        // Check for vulnerableSoftware array (Qualys format)
         JsonArray vulnerableSoftware = props != null ? getArrayOrNull(props, "vulnerableSoftware") : null;
 
         if (vulnerableSoftware != null && vulnerableSoftware.size() > 0) {
-            // Create one vulnerability entry per affected package
             for (JsonElement swElem : vulnerableSoftware) {
                 if (!swElem.isJsonObject()) continue;
                 JsonObject sw = swElem.getAsJsonObject();
@@ -211,14 +202,12 @@ public class SarifParser {
                 vuln.setPackageName(getStringOrNull(sw, "name"));
                 vuln.setInstalledVersion(getStringOrNull(sw, "installedVersion"));
                 vuln.setFixedVersion(getStringOrNull(sw, "fixedVersion"));
+                vuln.setLayerSHA(getStringOrNull(sw, "layerSHA"));
 
                 vulns.add(vuln);
             }
         } else {
-            // No vulnerableSoftware array, create single vulnerability
             Vulnerability vuln = createVulnerability(qid, title, ruleInfo, result);
-
-            // Try to get package info from flat properties
             if (props != null) {
                 vuln.setPackageName(getStringOrNull(props, "packageName"));
                 if (vuln.getPackageName() == null) {
@@ -242,7 +231,6 @@ public class SarifParser {
         vuln.setQid(qid);
         vuln.setTitle(title);
 
-        // Get severity and other info from rule
         if (ruleInfo != null) {
             vuln.setSeverityLevel(ruleInfo.severityLevel);
             vuln.setSeverity(severityLevelToString(ruleInfo.severityLevel));
@@ -254,7 +242,6 @@ public class SarifParser {
             }
         }
 
-        // Fallback severity from result level
         if (vuln.getSeverityLevel() == 0) {
             String level = getStringOrNull(result, "level");
             if (level != null) {
@@ -296,16 +283,13 @@ public class SarifParser {
 
             RuleInfo info = new RuleInfo();
 
-            // Get description from shortDescription
             JsonObject shortDesc = getObjectOrNull(rule, "shortDescription");
             if (shortDesc != null) {
                 info.description = getStringOrNull(shortDesc, "text");
             }
 
-            // Get properties (severity, cve-ids, qds)
             JsonObject properties = getObjectOrNull(rule, "properties");
             if (properties != null) {
-                // Severity - Qualys uses numeric severity (5=Critical, 4=High, 3=Medium, 2=Low, 1=Info)
                 JsonElement severityElem = properties.get("severity");
                 if (severityElem == null) {
                     severityElem = properties.get("customerSeverity");
@@ -313,21 +297,18 @@ public class SarifParser {
                 if (severityElem != null && !severityElem.isJsonNull()) {
                     try {
                         int sev = severityElem.getAsInt();
-                        // Qualys uses 5=Critical, 4=High, 3=Medium, 2=Low, 1=Info
-                        // But sometimes 4=High is highest, map accordingly
                         if (sev >= 4) {
-                            info.severityLevel = 5; // Critical
+                            info.severityLevel = 5;
                         } else if (sev == 3) {
-                            info.severityLevel = 3; // Medium
+                            info.severityLevel = 3;
                         } else if (sev == 2) {
-                            info.severityLevel = 2; // Low
+                            info.severityLevel = 2;
                         } else {
-                            info.severityLevel = 1; // Info
+                            info.severityLevel = 1;
                         }
                     } catch (Exception ignored) {}
                 }
 
-                // CVEs - Qualys uses "cve-ids" array
                 JsonArray cveIds = getArrayOrNull(properties, "cve-ids");
                 if (cveIds != null) {
                     for (JsonElement cve : cveIds) {
@@ -339,7 +320,6 @@ public class SarifParser {
                     }
                 }
 
-                // QDS score - Qualys stores as string
                 JsonElement qdsElem = properties.get("qds");
                 if (qdsElem != null && !qdsElem.isJsonNull()) {
                     try {
@@ -349,7 +329,6 @@ public class SarifParser {
                 }
             }
 
-            // Fallback severity from defaultConfiguration level
             if (info.severityLevel == 0) {
                 JsonObject defaultConfig = getObjectOrNull(rule, "defaultConfiguration");
                 if (defaultConfig != null) {

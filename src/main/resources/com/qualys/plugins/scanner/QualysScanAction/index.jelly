@@ -71,8 +71,11 @@
                 .qualys-stat { background: var(--qualys-stat-bg); padding: 15px; border-radius: 6px; text-align: center; }
                 .qualys-stat-value { font-size: 28px; font-weight: bold; color: var(--qualys-text); }
                 .qualys-stat-label { font-size: 12px; color: var(--qualys-text-muted); text-transform: uppercase; margin-top: 5px; }
-                .qualys-severity-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-                .qualys-severity { padding: 15px; border-radius: 6px; text-align: center; color: white; }
+                .qualys-severity-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+                .qualys-severity { padding: 15px; border-radius: 6px; text-align: center; color: white; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; opacity: 0.7; }
+                .qualys-severity:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+                .qualys-severity.active { opacity: 1; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+                .qualys-severity.all { background: #6c757d; }
                 .qualys-severity.critical { background: #d9534f; }
                 .qualys-severity.high { background: #f0ad4e; color: #333; }
                 .qualys-severity.medium { background: #5bc0de; color: #333; }
@@ -109,22 +112,18 @@
                 .qualys-success-text { color: #28a745; font-weight: 500; }
                 .qualys-muted-text { color: var(--qualys-text-muted); }
                 .qualys-filter-controls { margin-bottom: 15px; }
-                .qualys-search-box { margin-bottom: 12px; }
-                .qualys-search-input { width: 100%; max-width: 400px; padding: 10px 14px; border: 1px solid var(--qualys-card-border); border-radius: 6px; font-size: 14px; background: var(--qualys-card-bg); color: var(--qualys-text); }
+                .qualys-search-input { flex: 1; max-width: 400px; padding: 8px 12px; border: 1px solid var(--qualys-card-border); border-radius: 6px; font-size: 14px; background: var(--qualys-card-bg); color: var(--qualys-text); }
                 .qualys-search-input:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15); }
                 .qualys-search-input::placeholder { color: var(--qualys-text-muted); }
-                .qualys-filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
-                .qualys-filter-tab { padding: 8px 16px; border: 1px solid var(--qualys-card-border); border-radius: 6px; background: var(--qualys-card-bg); color: var(--qualys-text); cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s ease; }
-                .qualys-filter-tab:hover { background: var(--qualys-table-hover); border-color: #007bff; }
-                .qualys-filter-tab.active { background: #007bff; color: white; border-color: #007bff; }
-                .qualys-filter-tab[data-severity="critical"].active { background: #d9534f; border-color: #d9534f; }
-                .qualys-filter-tab[data-severity="high"].active { background: #f0ad4e; border-color: #f0ad4e; color: #333; }
-                .qualys-filter-tab[data-severity="medium"].active { background: #5bc0de; border-color: #5bc0de; color: #333; }
-                .qualys-filter-tab[data-severity="low"].active { background: #5cb85c; border-color: #5cb85c; }
-                .qualys-tab-count { display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 10px; font-size: 11px; background: rgba(0,0,0,0.1); }
-                .qualys-filter-tab.active .qualys-tab-count { background: rgba(255,255,255,0.25); }
                 .qualys-no-results { padding: 20px; text-align: center; color: var(--qualys-text-muted); font-style: italic; }
                 .vuln-row-hidden { display: none !important; }
+                .qualys-filter-row { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 12px; }
+                .qualys-page-size { display: flex; align-items: center; gap: 8px; }
+                .qualys-page-size label { font-size: 13px; color: var(--qualys-text-secondary); }
+                .qualys-page-size select { padding: 6px 10px; border: 1px solid var(--qualys-card-border); border-radius: 4px; background: var(--qualys-card-bg); color: var(--qualys-text); font-size: 13px; cursor: pointer; }
+                .qualys-page-size select:focus { outline: none; border-color: #007bff; }
+                .qualys-showing { font-size: 13px; color: var(--qualys-text-muted); margin-left: auto; }
+                .qualys-layer { font-family: monospace; font-size: 11px; color: var(--qualys-text-muted); background: var(--qualys-stat-bg); padding: 2px 6px; border-radius: 3px; }
             </style>
 
             <div class="qualys-report">
@@ -168,6 +167,12 @@
                                 <span class="qualys-info-label">Total Packages:</span>
                                 <span class="qualys-info-value">${it.totalPackages}</span>
                             </div>
+                            <j:if test="${it.hasLayers()}">
+                                <div class="qualys-info-row">
+                                    <span class="qualys-info-label">Total Layers:</span>
+                                    <span class="qualys-info-value">${it.totalLayers}</span>
+                                </div>
+                            </j:if>
                             <div class="qualys-info-row">
                                 <span class="qualys-info-label">Total Vulnerabilities:</span>
                                 <span class="qualys-info-value">${it.totalVulnerabilities}</span>
@@ -176,23 +181,27 @@
                     </div>
                 </div>
 
-                <!-- Severity Breakdown -->
+                <!-- Severity Breakdown (clickable filters) -->
                 <div class="qualys-card">
                     <h2>Vulnerability Summary</h2>
-                    <div class="qualys-severity-grid">
-                        <div class="qualys-severity critical">
+                    <div class="qualys-severity-grid" id="severity-filters">
+                        <div class="qualys-severity all active" data-severity="all">
+                            <div class="qualys-severity-count">${it.totalVulnerabilities}</div>
+                            <div class="qualys-severity-label">All</div>
+                        </div>
+                        <div class="qualys-severity critical" data-severity="critical">
                             <div class="qualys-severity-count">${it.criticalCount}</div>
                             <div class="qualys-severity-label">Critical</div>
                         </div>
-                        <div class="qualys-severity high">
+                        <div class="qualys-severity high" data-severity="high">
                             <div class="qualys-severity-count">${it.highCount}</div>
                             <div class="qualys-severity-label">High</div>
                         </div>
-                        <div class="qualys-severity medium">
+                        <div class="qualys-severity medium" data-severity="medium">
                             <div class="qualys-severity-count">${it.mediumCount}</div>
                             <div class="qualys-severity-label">Medium</div>
                         </div>
-                        <div class="qualys-severity low">
+                        <div class="qualys-severity low" data-severity="low">
                             <div class="qualys-severity-count">${it.lowCount}</div>
                             <div class="qualys-severity-label">Low</div>
                         </div>
@@ -205,27 +214,18 @@
                         <h2>Vulnerabilities (<span id="vuln-count">${it.totalVulnerabilities}</span>)</h2>
 
                         <j:if test="${it.totalVulnerabilities > 0}">
-                            <!-- Filter Controls -->
                             <div class="qualys-filter-controls">
-                                <div class="qualys-search-box">
+                                <div class="qualys-filter-row">
                                     <input type="text" id="vuln-search" placeholder="Search by title, package, CVE, or QID..." class="qualys-search-input" />
-                                </div>
-                                <div class="qualys-filter-tabs">
-                                    <button class="qualys-filter-tab active" data-severity="all">
-                                        All <span class="qualys-tab-count">${it.totalVulnerabilities}</span>
-                                    </button>
-                                    <button class="qualys-filter-tab" data-severity="critical">
-                                        Critical <span class="qualys-tab-count">${it.criticalCount}</span>
-                                    </button>
-                                    <button class="qualys-filter-tab" data-severity="high">
-                                        High <span class="qualys-tab-count">${it.highCount}</span>
-                                    </button>
-                                    <button class="qualys-filter-tab" data-severity="medium">
-                                        Medium <span class="qualys-tab-count">${it.mediumCount}</span>
-                                    </button>
-                                    <button class="qualys-filter-tab" data-severity="low">
-                                        Low <span class="qualys-tab-count">${it.lowCount}</span>
-                                    </button>
+                                    <div class="qualys-page-size">
+                                        <label>Show:</label>
+                                        <select id="vuln-page-size">
+                                            <option value="25">25</option>
+                                            <option value="50">50</option>
+                                            <option value="all">All</option>
+                                        </select>
+                                    </div>
+                                    <span class="qualys-showing" id="vuln-showing"></span>
                                 </div>
                             </div>
                             <div id="no-results" class="qualys-no-results" style="display: none;">
@@ -240,6 +240,7 @@
                                         <th style="width: 150px;">Package</th>
                                         <th style="width: 100px;">Version</th>
                                         <th style="width: 100px;">Fixed In</th>
+                                        <th style="width: 100px;">Layer</th>
                                         <th style="width: 150px;">CVEs</th>
                                         <th style="width: 60px;">QDS</th>
                                     </tr>
@@ -255,6 +256,12 @@
                                             <td class="qualys-mono">${vuln.packageName != null ? vuln.packageName : '-'}</td>
                                             <td class="qualys-mono">${vuln.installedVersion != null ? vuln.installedVersion : '-'}</td>
                                             <td class="qualys-mono">${vuln.fixedVersion != null ? vuln.fixedVersion : '-'}</td>
+                                            <td>
+                                                <j:if test="${vuln.layerShort != null}">
+                                                    <span class="qualys-layer" title="${vuln.layerSHA}">${vuln.layerShort}</span>
+                                                </j:if>
+                                                <j:if test="${vuln.layerShort == null}">-</j:if>
+                                            </td>
                                             <td>
                                                 <j:forEach var="cve" items="${vuln.cves}" varStatus="cveStatus">
                                                     <a class="qualys-cve-link" href="https://nvd.nist.gov/vuln/detail/${cve}" target="_blank">${cve}</a>
@@ -284,23 +291,47 @@
 
                     <!-- Software Packages (SBOM) -->
                     <div class="qualys-card">
-                        <h2>Software Packages (${it.totalPackages})</h2>
+                        <h2>Software Packages (<span id="pkg-count">${it.totalPackages}</span>)</h2>
 
                         <j:if test="${it.totalPackages > 0}">
-                            <table class="qualys-table qualys-package-table">
+                            <div class="qualys-filter-controls">
+                                <div class="qualys-filter-row">
+                                    <input type="text" id="pkg-search" placeholder="Search by package name or type..." class="qualys-search-input" />
+                                    <div class="qualys-page-size">
+                                        <label>Show:</label>
+                                        <select id="pkg-page-size">
+                                            <option value="25">25</option>
+                                            <option value="50">50</option>
+                                            <option value="all">All</option>
+                                        </select>
+                                    </div>
+                                    <span class="qualys-showing" id="pkg-showing"></span>
+                                </div>
+                            </div>
+                            <div id="pkg-no-results" class="qualys-no-results" style="display: none;">
+                                No packages match your search criteria.
+                            </div>
+                            <table class="qualys-table qualys-package-table" id="pkg-table">
                                 <thead>
                                     <tr>
                                         <th>Package Name</th>
                                         <th>Version</th>
                                         <th>Type</th>
+                                        <th>Layer</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="pkg-tbody">
                                     <j:forEach var="pkg" items="${it.packages}">
                                         <tr>
                                             <td>${pkg.name}</td>
                                             <td>${pkg.version != null ? pkg.version : '-'}</td>
                                             <td>${pkg.type != null ? pkg.type : '-'}</td>
+                                            <td>
+                                                <j:if test="${pkg.layerShort != null}">
+                                                    <span class="qualys-layer" title="${pkg.layerSHA}">${pkg.layerShort}</span>
+                                                </j:if>
+                                                <j:if test="${pkg.layerShort == null}">-</j:if>
+                                            </td>
                                         </tr>
                                     </j:forEach>
                                 </tbody>
@@ -352,55 +383,66 @@
 
             <script>
                 (function() {
-                    var searchInput = document.getElementById('vuln-search');
-                    var filterTabs = document.querySelectorAll('.qualys-filter-tab');
-                    var tbody = document.getElementById('vuln-tbody');
-                    var vulnCount = document.getElementById('vuln-count');
-                    var noResults = document.getElementById('no-results');
-                    var table = document.getElementById('vuln-table');
+                    function createTableFilter(config) {
+                        var search = document.getElementById(config.searchId);
+                        var pageSize = document.getElementById(config.pageSizeId);
+                        var showing = document.getElementById(config.showingId);
+                        var tbody = document.getElementById(config.tbodyId);
+                        var table = document.getElementById(config.tableId);
+                        var noResults = document.getElementById(config.noResultsId);
+                        var countEl = document.getElementById(config.countId);
+                        if (!tbody) return null;
+                        var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+                        var state = { search: '', severity: 'all', pageSize: 25 };
 
-                    if (!tbody || !searchInput) return;
-
-                    var rows = tbody.querySelectorAll('tr');
-                    var currentSeverity = 'all';
-                    var currentSearch = '';
-
-                    function filterRows() {
-                        var visibleCount = 0;
-                        rows.forEach(function(row) {
-                            var severity = row.getAttribute('data-severity');
-                            var text = row.textContent.toLowerCase();
-                            var matchesSeverity = currentSeverity === 'all' || severity === currentSeverity;
-                            var matchesSearch = currentSearch === '' || text.indexOf(currentSearch) !== -1;
-                            if (matchesSeverity &amp;&amp; matchesSearch) {
-                                row.classList.remove('vuln-row-hidden');
-                                visibleCount++;
-                            } else {
-                                row.classList.add('vuln-row-hidden');
-                            }
-                        });
-                        vulnCount.textContent = visibleCount;
-                        if (visibleCount === 0) {
-                            noResults.style.display = 'block';
-                            table.style.display = 'none';
-                        } else {
-                            noResults.style.display = 'none';
-                            table.style.display = 'table';
+                        function update() {
+                            var matched = [];
+                            rows.forEach(function(row) {
+                                var text = row.textContent.toLowerCase();
+                                var sev = row.getAttribute('data-severity');
+                                var matchSearch = state.search === '' || text.indexOf(state.search) !== -1;
+                                var matchSev = !config.hasSeverity || state.severity === 'all' || sev === state.severity;
+                                if (matchSearch &amp;&amp; matchSev) {
+                                    matched.push(row);
+                                }
+                            });
+                            var limit = state.pageSize === 'all' ? matched.length : parseInt(state.pageSize);
+                            var shown = 0;
+                            rows.forEach(function(row) { row.classList.add('vuln-row-hidden'); });
+                            matched.forEach(function(row, i) {
+                                if (i &lt; limit) { row.classList.remove('vuln-row-hidden'); shown++; }
+                            });
+                            if (countEl) countEl.textContent = matched.length;
+                            if (showing) showing.textContent = 'Showing ' + shown + ' of ' + matched.length;
+                            if (noResults) noResults.style.display = matched.length === 0 ? 'block' : 'none';
+                            if (table) table.style.display = matched.length === 0 ? 'none' : 'table';
                         }
+
+                        if (search) search.addEventListener('input', function() { state.search = search.value.toLowerCase().trim(); update(); });
+                        if (pageSize) pageSize.addEventListener('change', function() { state.pageSize = pageSize.value; update(); });
+                        update();
+                        return { setState: function(key, val) { state[key] = val; update(); } };
                     }
 
-                    filterTabs.forEach(function(tab) {
-                        tab.addEventListener('click', function() {
-                            filterTabs.forEach(function(t) { t.classList.remove('active'); });
-                            tab.classList.add('active');
-                            currentSeverity = tab.getAttribute('data-severity');
-                            filterRows();
-                        });
+                    var vulnFilter = createTableFilter({
+                        searchId: 'vuln-search', pageSizeId: 'vuln-page-size', showingId: 'vuln-showing',
+                        tbodyId: 'vuln-tbody', tableId: 'vuln-table', noResultsId: 'no-results',
+                        countId: 'vuln-count', hasSeverity: true
                     });
 
-                    searchInput.addEventListener('input', function() {
-                        currentSearch = searchInput.value.toLowerCase().trim();
-                        filterRows();
+                    createTableFilter({
+                        searchId: 'pkg-search', pageSizeId: 'pkg-page-size', showingId: 'pkg-showing',
+                        tbodyId: 'pkg-tbody', tableId: 'pkg-table', noResultsId: 'pkg-no-results',
+                        countId: 'pkg-count', hasSeverity: false
+                    });
+
+                    var sevFilters = document.querySelectorAll('#severity-filters .qualys-severity');
+                    sevFilters.forEach(function(box) {
+                        box.addEventListener('click', function() {
+                            sevFilters.forEach(function(b) { b.classList.remove('active'); });
+                            box.classList.add('active');
+                            if (vulnFilter) vulnFilter.setState('severity', box.getAttribute('data-severity'));
+                        });
                     });
                 })();
             </script>

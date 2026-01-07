@@ -44,30 +44,24 @@ import java.util.stream.Collectors;
  */
 public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
 
-    // Required fields
     private final String credentialsId;
     private final String scanType;
 
-    // Scanner backend selection
     private String scannerBackend = "qscanner";
 
-    // CICD Sensor specific options
     private String cicdCredentialsId;
     private int pollingInterval = 10;
     private int vulnsTimeout = 600;
 
-    // Container scan options
     private String imageId;
     private String storageDriver;
     private String platform;
 
-    // Code scan options
     private String scanPath;
     private String excludeDirs;
     private String excludeFiles;
     private boolean offlineScan;
 
-    // Scan options
     private String scanTypes = "pkg";
     private boolean scanSecrets;
     private boolean scanMalware;
@@ -75,29 +69,24 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
     private boolean generateSbom;
     private String sbomFormat = "spdx";
 
-    // Policy options
     private boolean usePolicyEvaluation;
     private String policyTags;
 
-    // Threshold options
     private int maxCritical = 0;
     private int maxHigh = 0;
     private int maxMedium = -1;
     private int maxLow = -1;
 
-    // Behavior options
     private boolean continueOnError;
     private boolean publishSarif = true;
 
-    // Proxy options
     private String proxyUrl;
     private boolean skipTlsVerify;
 
-    // Jira integration
     private boolean createJiraIssues;
     private String jiraCredentialsId;
     private String jiraProjectKey;
-    private int jiraMinSeverity = 4; // Default to High and above
+    private int jiraMinSeverity = 4;
     private String jiraLabels;
     private String jiraAssignee;
 
@@ -120,20 +109,16 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
         listener.getLogger().println("Backend: " + backend.getDisplayName());
         listener.getLogger().println("Scan Type: " + type.getDisplayName());
 
-        // Create the appropriate runner based on backend
         ScannerRunner runner;
         QScannerConfig qscannerConfig = null;
 
         if (backend == ScannerBackend.CICD_SENSOR) {
-            // CICD Sensor only supports container scans
             if (type != ScanType.CONTAINER) {
                 throw new AbortException("CICD Sensor only supports container scans. " +
                     "Use QScanner backend for " + type.getDisplayName() + " scans.");
             }
-
             runner = createCICDSensorRunner(run, workspace, launcher, listener, env);
         } else {
-            // QScanner backend
             QualysApiToken credentials = CredentialsProvider.findCredentialById(
                 credentialsId, QualysApiToken.class, run, Collections.emptyList());
 
@@ -172,14 +157,12 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
                 throw new AbortException("Unknown scan type: " + scanType);
         }
 
-        // Process results
         processResults(run, workspace, listener, result, qscannerConfig);
     }
 
     private ScannerRunner createCICDSensorRunner(Run<?, ?> run, FilePath workspace,
                                                   Launcher launcher, TaskListener listener,
                                                   EnvVars env) throws AbortException {
-        // Get CICD sensor credentials (username/password based)
         String credsId = cicdCredentialsId != null ? cicdCredentialsId : credentialsId;
         QualysCredentials credentials = CredentialsProvider.findCredentialById(
             credsId, QualysCredentials.class, run, Collections.emptyList());
@@ -205,7 +188,6 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
             .outputDir(workspace.child("qualys-scan-results").getRemote())
             .build();
 
-        // Add proxy if configured
         if (proxyUrl != null && !proxyUrl.isEmpty()) {
             try {
                 java.net.URL url = new java.net.URL(proxyUrl);
@@ -272,7 +254,6 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
             return;
         }
 
-        // Parse SARIF for vulnerability summary
         if (result.getSarifReportPath() != null) {
             try {
                 FilePath sarifFile = new FilePath(workspace.getChannel(),
@@ -280,7 +261,6 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
                 VulnerabilitySummary summary = SarifParser.parse(sarifFile);
                 result.setVulnerabilitySummary(summary);
 
-                // Archive SARIF report
                 if (publishSarif) {
                     FilePath outputDir = workspace.child("qualys-scan-results");
                     outputDir.copyRecursiveTo(
@@ -292,12 +272,10 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
             }
         }
 
-        // Evaluate thresholds or policy
         boolean shouldFail = false;
         String failureReason = null;
 
         if (config.isUsePolicyEvaluation()) {
-            // Policy-based evaluation
             if (result.getPolicyResult() == QScannerResult.PolicyResult.DENY) {
                 shouldFail = true;
                 failureReason = "Policy evaluation result: DENY";
@@ -307,7 +285,6 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
                 listener.getLogger().println("Policy evaluation result: ALLOW");
             }
         } else {
-            // Threshold-based evaluation
             ThresholdEvaluator evaluator = new ThresholdEvaluator(
                 maxCritical, maxHigh, maxMedium, maxLow);
             ThresholdEvaluator.ThresholdResult thresholdResult =
@@ -321,12 +298,10 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
             }
         }
 
-        // Create Jira issues if enabled
         if (createJiraIssues && result.getSarifReportPath() != null) {
             createJiraIssuesFromSarif(run, listener, result.getSarifReportPath());
         }
 
-        // Set build result
         if (shouldFail) {
             listener.error("Security scan failed: " + failureReason);
             if (!continueOnError) {
@@ -339,7 +314,6 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
             listener.getLogger().println("\nSecurity scan passed!");
         }
 
-        // Export environment variables for downstream steps
         exportBuildVariables(run, result, listener);
     }
 
@@ -392,7 +366,6 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
     private void exportBuildVariables(Run<?, ?> run, QScannerResult result, TaskListener listener) {
         VulnerabilitySummary summary = result.getVulnerabilitySummary();
 
-        // Store as build parameters for visibility
         QualysScanAction scanAction = new QualysScanAction(
             summary.getTotal(),
             summary.getCritical(),
@@ -404,7 +377,6 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
             result.getSarifReportPath()
         );
 
-        // Parse detailed report from SARIF
         if (result.getSarifReportPath() != null) {
             try {
                 FilePath sarifFile = new FilePath(new java.io.File(result.getSarifReportPath()));
@@ -432,7 +404,6 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
         listener.getLogger().println("Build marked unstable (continueOnError=true)");
     }
 
-    // Getters
     public String getCredentialsId() { return credentialsId; }
     public String getScanType() { return scanType; }
     public String getScannerBackend() { return scannerBackend; }

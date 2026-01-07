@@ -21,13 +21,11 @@ public class QScannerResult implements Serializable {
     private VulnerabilitySummary vulnerabilitySummary;
     private PolicyResult policyResult = PolicyResult.NOT_EVALUATED;
 
-    // Report file paths
     private String sarifReportPath;
     private String jsonReportPath;
     private String sbomPath;
     private String outputDirectory;
 
-    // Scan metadata
     private String scanId;
     private long scanDurationMs;
     private String imageDigest;
@@ -64,7 +62,6 @@ public class QScannerResult implements Serializable {
         return policyResult == PolicyResult.DENY;
     }
 
-    // Getters and Setters
     public QScannerExitCode getExitCode() { return exitCode; }
     public void setExitCode(QScannerExitCode exitCode) { this.exitCode = exitCode; }
 
