@@ -122,13 +122,27 @@ public class SarifParser {
     private static void extractTargetInfo(JsonObject run, ScanReportDetails details) {
         JsonObject runProps = getObjectOrNull(run, "properties");
         if (runProps != null) {
-            details.setImageId(getStringOrNull(runProps, "imageId"));
+            String imageId = getStringOrNull(runProps, "imageID");
+            if (imageId == null) {
+                imageId = getStringOrNull(runProps, "imageId");
+            }
+            details.setImageId(imageId);
             details.setImageDigest(getStringOrNull(runProps, "imageDigest"));
             details.setOperatingSystem(getStringOrNull(runProps, "os"));
             if (details.getOperatingSystem() == null) {
                 details.setOperatingSystem(getStringOrNull(runProps, "operatingSystem"));
             }
             details.setImageName(getStringOrNull(runProps, "imageName"));
+
+            if (details.getImageName() == null) {
+                JsonArray repoTags = getArrayOrNull(runProps, "repoTags");
+                if (repoTags != null && !repoTags.isEmpty()) {
+                    JsonElement firstTag = repoTags.get(0);
+                    if (!firstTag.isJsonNull()) {
+                        details.setImageName(firstTag.getAsString());
+                    }
+                }
+            }
         }
 
         JsonArray artifacts = getArrayOrNull(run, "artifacts");
@@ -143,7 +157,11 @@ public class SarifParser {
                 JsonObject artifactProps = getObjectOrNull(artifact, "properties");
                 if (artifactProps != null) {
                     if (details.getImageId() == null) {
-                        details.setImageId(getStringOrNull(artifactProps, "imageId"));
+                        String imgId = getStringOrNull(artifactProps, "imageID");
+                        if (imgId == null) {
+                            imgId = getStringOrNull(artifactProps, "imageId");
+                        }
+                        details.setImageId(imgId);
                     }
                     if (details.getImageDigest() == null) {
                         details.setImageDigest(getStringOrNull(artifactProps, "repoDigest"));

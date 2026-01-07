@@ -198,19 +198,16 @@ public class JiraIssueCreator {
         issueType.addProperty("name", "Bug");
         fields.add("issuetype", issueType);
 
-        // Priority mapping
         JsonObject priority = new JsonObject();
         priority.addProperty("name", mapSeverityToPriority(info.severity));
         fields.add("priority", priority);
 
-        // Labels
         JsonArray labelsArray = new JsonArray();
         for (String label : allLabels) {
             labelsArray.add(label.replaceAll("[^a-zA-Z0-9_-]", "_"));
         }
         fields.add("labels", labelsArray);
 
-        // Assignee
         if (assignee != null && !assignee.isEmpty()) {
             JsonObject assigneeObj = new JsonObject();
             assigneeObj.addProperty("name", assignee);
@@ -219,7 +216,6 @@ public class JiraIssueCreator {
 
         issueData.add("fields", fields);
 
-        // Make API call
         HttpURLConnection conn = createConnection("/rest/api/2/issue");
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
@@ -243,7 +239,6 @@ public class JiraIssueCreator {
     }
 
     private boolean issueExists(String vulnTag) throws IOException {
-        // Search for existing issue with the vulnerability tag
         String jql = String.format("project = %s AND description ~ \"%s\"", projectKey, vulnTag);
 
         HttpURLConnection conn = createConnection("/rest/api/2/search?jql=" +
@@ -267,7 +262,6 @@ public class JiraIssueCreator {
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setRequestProperty("Accept", "application/json");
 
-        // Basic auth with API token
         String auth = jiraUsername + ":" + jiraApiToken;
         String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
         conn.setRequestProperty("Authorization", "Basic " + encodedAuth);

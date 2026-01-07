@@ -160,8 +160,8 @@
                         </div>
                         <div>
                             <div class="qualys-info-row">
-                                <span class="qualys-info-label">Policy Result:</span>
-                                <span class="qualys-info-value">${it.policyResult != null ? it.policyResult : 'N/A'}</span>
+                                <span class="qualys-info-label">Evaluation:</span>
+                                <span class="qualys-info-value">${it.policyResultDisplay}</span>
                             </div>
                             <div class="qualys-info-row">
                                 <span class="qualys-info-label">Total Packages:</span>
@@ -217,6 +217,17 @@
                             <div class="qualys-filter-controls">
                                 <div class="qualys-filter-row">
                                     <input type="text" id="vuln-search" placeholder="Search by title, package, CVE, or QID..." class="qualys-search-input" />
+                                    <j:if test="${it.hasLayers()}">
+                                        <div class="qualys-page-size">
+                                            <label>Layer:</label>
+                                            <select id="vuln-layer-filter">
+                                                <option value="all">All Layers</option>
+                                                <j:forEach var="layer" items="${it.layers}">
+                                                    <option value="${layer}">${layer.length() > 19 ? layer.substring(7, 19) : layer}</option>
+                                                </j:forEach>
+                                            </select>
+                                        </div>
+                                    </j:if>
                                     <div class="qualys-page-size">
                                         <label>Show:</label>
                                         <select id="vuln-page-size">
@@ -247,7 +258,7 @@
                                 </thead>
                                 <tbody id="vuln-tbody">
                                     <j:forEach var="vuln" items="${it.vulnerabilities}">
-                                        <tr data-severity="${vuln.severityClass}">
+                                        <tr data-severity="${vuln.severityClass}" data-layer="${vuln.layerSHA != null ? vuln.layerSHA : ''}">
                                             <td>
                                                 <span class="qualys-badge ${vuln.severityClass}">${vuln.severity}</span>
                                             </td>
@@ -386,6 +397,7 @@
                     function createTableFilter(config) {
                         var search = document.getElementById(config.searchId);
                         var pageSize = document.getElementById(config.pageSizeId);
+                        var layerFilter = document.getElementById(config.layerFilterId);
                         var showing = document.getElementById(config.showingId);
                         var tbody = document.getElementById(config.tbodyId);
                         var table = document.getElementById(config.tableId);
@@ -393,16 +405,18 @@
                         var countEl = document.getElementById(config.countId);
                         if (!tbody) return null;
                         var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
-                        var state = { search: '', severity: 'all', pageSize: 25 };
+                        var state = { search: '', severity: 'all', layer: 'all', pageSize: 25 };
 
                         function update() {
                             var matched = [];
                             rows.forEach(function(row) {
                                 var text = row.textContent.toLowerCase();
                                 var sev = row.getAttribute('data-severity');
+                                var layer = row.getAttribute('data-layer') || '';
                                 var matchSearch = state.search === '' || text.indexOf(state.search) !== -1;
                                 var matchSev = !config.hasSeverity || state.severity === 'all' || sev === state.severity;
-                                if (matchSearch &amp;&amp; matchSev) {
+                                var matchLayer = !config.hasLayer || state.layer === 'all' || layer === state.layer;
+                                if (matchSearch &amp;&amp; matchSev &amp;&amp; matchLayer) {
                                     matched.push(row);
                                 }
                             });
@@ -420,20 +434,22 @@
 
                         if (search) search.addEventListener('input', function() { state.search = search.value.toLowerCase().trim(); update(); });
                         if (pageSize) pageSize.addEventListener('change', function() { state.pageSize = pageSize.value; update(); });
+                        if (layerFilter) layerFilter.addEventListener('change', function() { state.layer = layerFilter.value; update(); });
                         update();
                         return { setState: function(key, val) { state[key] = val; update(); } };
                     }
 
                     var vulnFilter = createTableFilter({
                         searchId: 'vuln-search', pageSizeId: 'vuln-page-size', showingId: 'vuln-showing',
+                        layerFilterId: 'vuln-layer-filter',
                         tbodyId: 'vuln-tbody', tableId: 'vuln-table', noResultsId: 'no-results',
-                        countId: 'vuln-count', hasSeverity: true
+                        countId: 'vuln-count', hasSeverity: true, hasLayer: true
                     });
 
                     createTableFilter({
                         searchId: 'pkg-search', pageSizeId: 'pkg-page-size', showingId: 'pkg-showing',
                         tbodyId: 'pkg-tbody', tableId: 'pkg-table', noResultsId: 'pkg-no-results',
-                        countId: 'pkg-count', hasSeverity: false
+                        countId: 'pkg-count', hasSeverity: false, hasLayer: false
                     });
 
                     var sevFilters = document.querySelectorAll('#severity-filters .qualys-severity');

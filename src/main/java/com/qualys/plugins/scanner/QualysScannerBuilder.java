@@ -222,7 +222,6 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
             .skipTlsVerify(skipTlsVerify)
             .outputDir(workspace.child("qualys-scan-results").getRemote());
 
-        // Expand environment variables
         if (imageId != null) {
             builder.imageId(env.expand(imageId));
         }
@@ -314,7 +313,7 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
             listener.getLogger().println("\nSecurity scan passed!");
         }
 
-        exportBuildVariables(run, result, listener);
+        exportBuildVariables(run, result, listener, config);
     }
 
     private void createJiraIssuesFromSarif(Run<?, ?> run, TaskListener listener, String sarifPath) {
@@ -363,7 +362,7 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
         }
     }
 
-    private void exportBuildVariables(Run<?, ?> run, QScannerResult result, TaskListener listener) {
+    private void exportBuildVariables(Run<?, ?> run, QScannerResult result, TaskListener listener, QScannerConfig config) {
         VulnerabilitySummary summary = result.getVulnerabilitySummary();
 
         QualysScanAction scanAction = new QualysScanAction(
@@ -377,14 +376,22 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
             result.getSarifReportPath()
         );
 
+        if (config != null && config.isUsePolicyEvaluation()) {
+            scanAction.setEvaluationMode("policy");
+        } else {
+            scanAction.setEvaluationMode("threshold");
+        }
+
         if (result.getSarifReportPath() != null) {
             try {
                 FilePath sarifFile = new FilePath(new java.io.File(result.getSarifReportPath()));
                 if (sarifFile.exists()) {
                     ScanReportDetails details = SarifParser.parseDetailed(sarifFile);
-                    details.setImageName(imageId);
+                    if (details.getImageName() == null) {
+                        details.setImageName(imageId);
+                    }
                     scanAction.setReportDetails(details);
-                    scanAction.setImageName(imageId);
+                    scanAction.setImageName(details.getImageName() != null ? details.getImageName() : imageId);
                 }
             } catch (Exception e) {
                 listener.getLogger().println("Warning: Could not parse detailed report: " + e.getMessage());
@@ -440,7 +447,6 @@ public class QualysScannerBuilder extends Builder implements SimpleBuildStep {
     public String getJiraLabels() { return jiraLabels; }
     public String getJiraAssignee() { return jiraAssignee; }
 
-    // Setters with @DataBoundSetter
     @DataBoundSetter
     public void setScannerBackend(String scannerBackend) { this.scannerBackend = scannerBackend; }
 

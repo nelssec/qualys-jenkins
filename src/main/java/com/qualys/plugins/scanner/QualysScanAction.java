@@ -23,9 +23,9 @@ public class QualysScanAction implements RunAction2 {
     private final boolean scanPassed;
     private final String reportPath;
 
-    // Detailed report data
     private ScanReportDetails reportDetails;
     private String imageName;
+    private String evaluationMode;
 
     private transient Run<?, ?> run;
 
@@ -40,6 +40,7 @@ public class QualysScanAction implements RunAction2 {
         this.policyResult = policyResult;
         this.scanPassed = scanPassed;
         this.reportPath = reportPath;
+        this.evaluationMode = "threshold";
     }
 
     @Override
@@ -58,7 +59,6 @@ public class QualysScanAction implements RunAction2 {
 
     @Override
     public String getIconFileName() {
-        // Use Jenkins built-in clipboard icon
         return "clipboard.png";
     }
 
@@ -72,7 +72,6 @@ public class QualysScanAction implements RunAction2 {
         return "qualys-scan";
     }
 
-    // Basic getters for Jelly view
     public int getTotalVulnerabilities() { return totalVulnerabilities; }
     public int getCriticalCount() { return criticalCount; }
     public int getHighCount() { return highCount; }
@@ -82,7 +81,6 @@ public class QualysScanAction implements RunAction2 {
     public boolean isScanPassed() { return scanPassed; }
     public String getReportPath() { return reportPath; }
 
-    // Detailed report getters/setters
     public ScanReportDetails getReportDetails() { return reportDetails; }
     public void setReportDetails(ScanReportDetails reportDetails) {
         this.reportDetails = reportDetails;
@@ -91,7 +89,15 @@ public class QualysScanAction implements RunAction2 {
     public String getImageName() { return imageName; }
     public void setImageName(String imageName) { this.imageName = imageName; }
 
-    // Convenience methods for Jelly
+    public String getEvaluationMode() { return evaluationMode; }
+    public void setEvaluationMode(String evaluationMode) { this.evaluationMode = evaluationMode; }
+
+    public String getPolicyResultDisplay() {
+        String result = scanPassed ? "PASS" : "FAIL";
+        String mode = "policy".equals(evaluationMode) ? "Policy" : "Threshold";
+        return result + " (" + mode + ")";
+    }
+
     public String getImageId() {
         return reportDetails != null ? reportDetails.getImageId() : null;
     }

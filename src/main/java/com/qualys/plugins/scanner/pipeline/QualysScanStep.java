@@ -49,7 +49,6 @@ public class QualysScanStep extends Step implements Serializable {
     private final String credentialsId;
     private final String scanType;
 
-    // Optional parameters
     private String imageId;
     private String storageDriver;
     private String platform;
@@ -262,7 +261,6 @@ public class QualysScanStep extends Step implements Serializable {
                 return pipelineResult;
             }
 
-            // Parse SARIF
             if (result.getSarifReportPath() != null) {
                 try {
                     FilePath sarifFile = new FilePath(workspace.getChannel(), result.getSarifReportPath());
@@ -279,7 +277,6 @@ public class QualysScanStep extends Step implements Serializable {
                 }
             }
 
-            // Evaluate
             boolean shouldFail = false;
             String failureReason = null;
 
@@ -309,7 +306,6 @@ public class QualysScanStep extends Step implements Serializable {
             pipelineResult.setJsonReportPath(result.getJsonReportPath());
             pipelineResult.setSbomPath(result.getSbomPath());
 
-            // Add build action with detailed report
             QualysScanAction scanAction = new QualysScanAction(
                 pipelineResult.getTotalVulnerabilities(),
                 pipelineResult.getCriticalCount(),
@@ -321,7 +317,12 @@ public class QualysScanStep extends Step implements Serializable {
                 result.getSarifReportPath()
             );
 
-            // Parse detailed report from SARIF
+            if (config.isUsePolicyEvaluation()) {
+                scanAction.setEvaluationMode("policy");
+            } else {
+                scanAction.setEvaluationMode("threshold");
+            }
+
             if (result.getSarifReportPath() != null) {
                 try {
                     FilePath sarifFile = new FilePath(new java.io.File(result.getSarifReportPath()));

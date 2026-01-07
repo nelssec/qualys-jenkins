@@ -227,7 +227,6 @@ public class QScannerConfig implements Serializable {
     public String getOutputDir() { return outputDir; }
     public String getReportFormat() { return reportFormat; }
 
-    // Setters
     public void setPod(String pod) { this.pod = pod; }
     public void setAccessToken(String accessToken) { this.accessToken = accessToken; }
     public void setProxyUrl(String proxyUrl) { this.proxyUrl = proxyUrl; }
