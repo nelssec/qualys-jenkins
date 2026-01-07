@@ -108,6 +108,23 @@
                 .qualys-mono { font-family: monospace; font-size: 12px; color: var(--qualys-text); }
                 .qualys-success-text { color: #28a745; font-weight: 500; }
                 .qualys-muted-text { color: var(--qualys-text-muted); }
+                .qualys-filter-controls { margin-bottom: 15px; }
+                .qualys-search-box { margin-bottom: 12px; }
+                .qualys-search-input { width: 100%; max-width: 400px; padding: 10px 14px; border: 1px solid var(--qualys-card-border); border-radius: 6px; font-size: 14px; background: var(--qualys-card-bg); color: var(--qualys-text); }
+                .qualys-search-input:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15); }
+                .qualys-search-input::placeholder { color: var(--qualys-text-muted); }
+                .qualys-filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+                .qualys-filter-tab { padding: 8px 16px; border: 1px solid var(--qualys-card-border); border-radius: 6px; background: var(--qualys-card-bg); color: var(--qualys-text); cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s ease; }
+                .qualys-filter-tab:hover { background: var(--qualys-table-hover); border-color: #007bff; }
+                .qualys-filter-tab.active { background: #007bff; color: white; border-color: #007bff; }
+                .qualys-filter-tab[data-severity="critical"].active { background: #d9534f; border-color: #d9534f; }
+                .qualys-filter-tab[data-severity="high"].active { background: #f0ad4e; border-color: #f0ad4e; color: #333; }
+                .qualys-filter-tab[data-severity="medium"].active { background: #5bc0de; border-color: #5bc0de; color: #333; }
+                .qualys-filter-tab[data-severity="low"].active { background: #5cb85c; border-color: #5cb85c; }
+                .qualys-tab-count { display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 10px; font-size: 11px; background: rgba(0,0,0,0.1); }
+                .qualys-filter-tab.active .qualys-tab-count { background: rgba(255,255,255,0.25); }
+                .qualys-no-results { padding: 20px; text-align: center; color: var(--qualys-text-muted); font-style: italic; }
+                .vuln-row-hidden { display: none !important; }
             </style>
 
             <div class="qualys-report">
@@ -185,10 +202,36 @@
                 <!-- Vulnerabilities Table -->
                 <j:if test="${it.hasDetailedReport()}">
                     <div class="qualys-card">
-                        <h2>Vulnerabilities (${it.totalVulnerabilities})</h2>
+                        <h2>Vulnerabilities (<span id="vuln-count">${it.totalVulnerabilities}</span>)</h2>
 
                         <j:if test="${it.totalVulnerabilities > 0}">
-                            <table class="qualys-table">
+                            <!-- Filter Controls -->
+                            <div class="qualys-filter-controls">
+                                <div class="qualys-search-box">
+                                    <input type="text" id="vuln-search" placeholder="Search by title, package, CVE, or QID..." class="qualys-search-input" />
+                                </div>
+                                <div class="qualys-filter-tabs">
+                                    <button class="qualys-filter-tab active" data-severity="all">
+                                        All <span class="qualys-tab-count">${it.totalVulnerabilities}</span>
+                                    </button>
+                                    <button class="qualys-filter-tab" data-severity="critical">
+                                        Critical <span class="qualys-tab-count">${it.criticalCount}</span>
+                                    </button>
+                                    <button class="qualys-filter-tab" data-severity="high">
+                                        High <span class="qualys-tab-count">${it.highCount}</span>
+                                    </button>
+                                    <button class="qualys-filter-tab" data-severity="medium">
+                                        Medium <span class="qualys-tab-count">${it.mediumCount}</span>
+                                    </button>
+                                    <button class="qualys-filter-tab" data-severity="low">
+                                        Low <span class="qualys-tab-count">${it.lowCount}</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="no-results" class="qualys-no-results" style="display: none;">
+                                No vulnerabilities match your search criteria.
+                            </div>
+                            <table class="qualys-table" id="vuln-table">
                                 <thead>
                                     <tr>
                                         <th style="width: 80px;">Severity</th>
@@ -201,9 +244,9 @@
                                         <th style="width: 60px;">QDS</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="vuln-tbody">
                                     <j:forEach var="vuln" items="${it.vulnerabilities}">
-                                        <tr>
+                                        <tr data-severity="${vuln.severityClass}">
                                             <td>
                                                 <span class="qualys-badge ${vuln.severityClass}">${vuln.severity}</span>
                                             </td>
@@ -306,6 +349,61 @@
                     </div>
                 </j:if>
             </div>
+
+            <script>
+                (function() {
+                    var searchInput = document.getElementById('vuln-search');
+                    var filterTabs = document.querySelectorAll('.qualys-filter-tab');
+                    var tbody = document.getElementById('vuln-tbody');
+                    var vulnCount = document.getElementById('vuln-count');
+                    var noResults = document.getElementById('no-results');
+                    var table = document.getElementById('vuln-table');
+
+                    if (!tbody || !searchInput) return;
+
+                    var rows = tbody.querySelectorAll('tr');
+                    var currentSeverity = 'all';
+                    var currentSearch = '';
+
+                    function filterRows() {
+                        var visibleCount = 0;
+                        rows.forEach(function(row) {
+                            var severity = row.getAttribute('data-severity');
+                            var text = row.textContent.toLowerCase();
+                            var matchesSeverity = currentSeverity === 'all' || severity === currentSeverity;
+                            var matchesSearch = currentSearch === '' || text.indexOf(currentSearch) !== -1;
+                            if (matchesSeverity &amp;&amp; matchesSearch) {
+                                row.classList.remove('vuln-row-hidden');
+                                visibleCount++;
+                            } else {
+                                row.classList.add('vuln-row-hidden');
+                            }
+                        });
+                        vulnCount.textContent = visibleCount;
+                        if (visibleCount === 0) {
+                            noResults.style.display = 'block';
+                            table.style.display = 'none';
+                        } else {
+                            noResults.style.display = 'none';
+                            table.style.display = 'table';
+                        }
+                    }
+
+                    filterTabs.forEach(function(tab) {
+                        tab.addEventListener('click', function() {
+                            filterTabs.forEach(function(t) { t.classList.remove('active'); });
+                            tab.classList.add('active');
+                            currentSeverity = tab.getAttribute('data-severity');
+                            filterRows();
+                        });
+                    });
+
+                    searchInput.addEventListener('input', function() {
+                        currentSearch = searchInput.value.toLowerCase().trim();
+                        filterRows();
+                    });
+                })();
+            </script>
 
         </l:main-panel>
     </l:layout>
