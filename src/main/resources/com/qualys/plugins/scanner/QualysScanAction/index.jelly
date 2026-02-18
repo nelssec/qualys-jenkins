@@ -8,122 +8,133 @@
         </l:side-panel>
         <l:main-panel>
             <style>
-                /* CSS Variables for theming */
+                @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&amp;display=swap');
+
                 :root {
-                    --qualys-bg: #ffffff;
-                    --qualys-card-bg: #ffffff;
-                    --qualys-card-border: #dee2e6;
-                    --qualys-text: #333333;
-                    --qualys-text-secondary: #555555;
-                    --qualys-text-muted: #666666;
-                    --qualys-table-header-bg: #f8f9fa;
-                    --qualys-table-border: #dee2e6;
-                    --qualys-table-row-border: #eeeeee;
-                    --qualys-table-hover: #f8f9fa;
-                    --qualys-link: #007bff;
-                    --qualys-stat-bg: #f8f9fa;
+                    --qx-primary: #095fb3;
+                    --qx-primary-dark: #0a4a8a;
+                    --qx-text-primary: #364750;
+                    --qx-text-secondary: #56707e;
+                    --qx-text-muted: #afbec6;
+                    --qx-bg: #f7f8f9;
+                    --qx-card-bg: #ffffff;
+                    --qx-border: #dfe5e8;
+                    --qx-success: #50a248;
+                    --qx-success-dark: #3a7634;
+                    --qx-error: #c0392b;
+                    --qx-warning: #f39c12;
+                    --qx-critical: #c0392b;
+                    --qx-high: #e67e22;
+                    --qx-medium: #f1c40f;
+                    --qx-low: #27ae60;
+                    --qx-info: #3498db;
+                    --qx-shadow: 0 0 8px 0 rgba(0,0,0,0.102);
+                    --qx-radius: 12px;
                 }
 
-                /* Dark mode overrides */
-                @media (prefers-color-scheme: dark) {
-                    :root {
-                        --qualys-bg: #1e1e1e;
-                        --qualys-card-bg: #2d2d2d;
-                        --qualys-card-border: #444444;
-                        --qualys-text: #e0e0e0;
-                        --qualys-text-secondary: #cccccc;
-                        --qualys-text-muted: #aaaaaa;
-                        --qualys-table-header-bg: #383838;
-                        --qualys-table-border: #444444;
-                        --qualys-table-row-border: #3a3a3a;
-                        --qualys-table-hover: #383838;
-                        --qualys-link: #6db3f2;
-                        --qualys-stat-bg: #383838;
-                    }
-                }
-
-                /* Jenkins dark theme support */
                 [data-theme="dark"], .jenkins-dark-theme, body[data-color-scheme="dark"] {
-                    --qualys-bg: #1e1e1e;
-                    --qualys-card-bg: #2d2d2d;
-                    --qualys-card-border: #444444;
-                    --qualys-text: #e0e0e0;
-                    --qualys-text-secondary: #cccccc;
-                    --qualys-text-muted: #aaaaaa;
-                    --qualys-table-header-bg: #383838;
-                    --qualys-table-border: #444444;
-                    --qualys-table-row-border: #3a3a3a;
-                    --qualys-table-hover: #383838;
-                    --qualys-link: #6db3f2;
-                    --qualys-stat-bg: #383838;
+                    --qx-text-primary: #e0e0e0;
+                    --qx-text-secondary: #b0b0b0;
+                    --qx-text-muted: #808080;
+                    --qx-bg: #1a1a1a;
+                    --qx-card-bg: #2d2d2d;
+                    --qx-border: #404040;
                 }
 
-                .qualys-report { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--qualys-text); }
-                .qualys-header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-                .qualys-header h1 { margin: 0 0 10px 0; font-size: 24px; color: white; }
-                .qualys-status { display: inline-block; padding: 6px 16px; border-radius: 4px; font-weight: bold; font-size: 14px; }
-                .qualys-status.passed { background: #28a745; color: white; }
-                .qualys-status.failed { background: #dc3545; color: white; }
-                .qualys-card { background: var(--qualys-card-bg); border: 1px solid var(--qualys-card-border); border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-                .qualys-card h2 { margin: 0 0 15px 0; font-size: 18px; color: var(--qualys-text); border-bottom: 2px solid #007bff; padding-bottom: 10px; }
-                .qualys-card h3 { margin: 15px 0 10px 0; font-size: 16px; color: var(--qualys-text-secondary); }
-                .qualys-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-                .qualys-stat { background: var(--qualys-stat-bg); padding: 15px; border-radius: 6px; text-align: center; }
-                .qualys-stat-value { font-size: 28px; font-weight: bold; color: var(--qualys-text); }
-                .qualys-stat-label { font-size: 12px; color: var(--qualys-text-muted); text-transform: uppercase; margin-top: 5px; }
-                .qualys-severity-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-                .qualys-severity { padding: 15px; border-radius: 6px; text-align: center; color: white; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; opacity: 0.7; }
-                .qualys-severity:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-                .qualys-severity.active { opacity: 1; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-                .qualys-severity.all { background: #6c757d; }
-                .qualys-severity.critical { background: #d9534f; }
-                .qualys-severity.high { background: #f0ad4e; color: #333; }
-                .qualys-severity.medium { background: #5bc0de; color: #333; }
-                .qualys-severity.low { background: #5cb85c; }
-                .qualys-severity-count { font-size: 24px; font-weight: bold; }
-                .qualys-severity-label { font-size: 11px; text-transform: uppercase; }
+                .qualys-report { font-family: 'Roboto', sans-serif; color: var(--qx-text-primary); font-size: 14px; line-height: 1.5; }
+
+                .qualys-header { background: linear-gradient(135deg, #0a4a8a 0%, #095fb3 50%, #528fc9 100%); color: white; padding: 24px 28px; border-radius: var(--qx-radius); margin-bottom: 20px; box-shadow: var(--qx-shadow); }
+                .qualys-header h1 { margin: 0 0 12px 0; font-size: 24px; font-weight: 500; color: white; letter-spacing: -0.02em; }
+                .qualys-status { display: inline-flex; align-items: center; padding: 8px 20px; border-radius: 28px; font-weight: 500; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+                .qualys-status.passed { background: var(--qx-success); color: white; }
+                .qualys-status.failed { background: var(--qx-error); color: white; }
+
+                .qualys-card { background: var(--qx-card-bg); border: 1px solid var(--qx-border); border-radius: var(--qx-radius); padding: 24px; margin-bottom: 20px; box-shadow: var(--qx-shadow); }
+                .qualys-card h2 { margin: 0 0 20px 0; font-size: 18px; font-weight: 500; color: var(--qx-text-primary); border-bottom: 2px solid var(--qx-primary); padding-bottom: 12px; display: flex; align-items: center; }
+
+                .qualys-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
+                .qualys-info-row { display: flex; margin-bottom: 10px; font-size: 13px; }
+                .qualys-info-label { font-weight: 500; width: 150px; color: var(--qx-text-secondary); }
+                .qualys-info-value { color: var(--qx-text-primary); word-break: break-all; }
+
+                .qualys-severity-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+                .qualys-severity { padding: 16px; border-radius: 8px; text-align: center; color: white; cursor: pointer; transition: all 0.2s ease; opacity: 0.85; border: 2px solid transparent; }
+                .qualys-severity:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.15); opacity: 1; }
+                .qualys-severity.active { opacity: 1; transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.3); }
+                .qualys-severity.all { background: linear-gradient(135deg, #56707e, #364750); }
+                .qualys-severity.critical { background: linear-gradient(135deg, #c0392b, #96281b); }
+                .qualys-severity.high { background: linear-gradient(135deg, #e67e22, #d35400); }
+                .qualys-severity.medium { background: linear-gradient(135deg, #f1c40f, #d4ac0d); color: #333; }
+                .qualys-severity.low { background: linear-gradient(135deg, #27ae60, #1e8449); }
+                .qualys-severity-count { font-size: 28px; font-weight: 700; display: block; }
+                .qualys-severity-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; opacity: 0.9; }
+
                 .qualys-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-                .qualys-table th { background: var(--qualys-table-header-bg); color: var(--qualys-text); padding: 12px 10px; text-align: left; border-bottom: 2px solid var(--qualys-table-border); font-weight: 600; }
-                .qualys-table td { padding: 10px; border-bottom: 1px solid var(--qualys-table-row-border); vertical-align: top; color: var(--qualys-text); }
-                .qualys-table tr:hover { background: var(--qualys-table-hover); }
-                .qualys-badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; color: white; }
-                .qualys-badge.critical { background: #d9534f; }
-                .qualys-badge.high { background: #f0ad4e; color: #333; }
-                .qualys-badge.medium { background: #5bc0de; color: #333; }
-                .qualys-badge.low { background: #5cb85c; }
-                .qualys-badge.info { background: #999; }
-                .qualys-info-row { display: flex; margin-bottom: 8px; }
-                .qualys-info-label { font-weight: 600; width: 150px; color: var(--qualys-text-secondary); }
-                .qualys-info-value { color: var(--qualys-text); word-break: break-all; }
-                .qualys-tabs { border-bottom: 2px solid var(--qualys-table-border); margin-bottom: 15px; }
-                .qualys-tab { display: inline-block; padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; color: var(--qualys-text); }
-                .qualys-tab.active { border-bottom-color: #007bff; color: #007bff; font-weight: 600; }
-                .qualys-tab-content { display: none; }
-                .qualys-tab-content.active { display: block; }
-                .qualys-cve-link { color: var(--qualys-link); text-decoration: none; }
+                .qualys-table th { background: var(--qx-bg); color: var(--qx-text-secondary); padding: 14px 12px; text-align: left; border-bottom: 2px solid var(--qx-border); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+                .qualys-table td { padding: 12px; border-bottom: 1px solid var(--qx-border); vertical-align: middle; color: var(--qx-text-primary); }
+                .qualys-table tr:hover { background: var(--qx-bg); }
+
+                .qualys-badge { display: inline-flex; align-items: center; justify-content: center; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 500; color: white; min-width: 60px; text-transform: uppercase; letter-spacing: 0.3px; }
+                .qualys-badge.critical { background: var(--qx-critical); }
+                .qualys-badge.high { background: var(--qx-high); }
+                .qualys-badge.medium { background: var(--qx-medium); color: #333; }
+                .qualys-badge.low { background: var(--qx-low); }
+                .qualys-badge.info { background: var(--qx-info); }
+
+                .qualys-mono { font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--qx-text-primary); }
+                .qualys-success-text { color: var(--qx-success); font-weight: 500; }
+                .qualys-muted-text { color: var(--qx-text-muted); }
+                .qualys-cve-link { color: var(--qx-primary); text-decoration: none; font-weight: 500; }
                 .qualys-cve-link:hover { text-decoration: underline; }
-                .qualys-package-table td { font-family: monospace; font-size: 12px; }
-                .qualys-truncate { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-                .qualys-qds { font-weight: bold; }
-                .qualys-qds.high { color: #ff6b6b; }
-                .qualys-qds.medium { color: #ffc107; }
-                .qualys-qds.low { color: #51cf66; }
-                .qualys-mono { font-family: monospace; font-size: 12px; color: var(--qualys-text); }
-                .qualys-success-text { color: #28a745; font-weight: 500; }
-                .qualys-muted-text { color: var(--qualys-text-muted); }
-                .qualys-filter-controls { margin-bottom: 15px; }
-                .qualys-search-input { flex: 1; max-width: 400px; padding: 8px 12px; border: 1px solid var(--qualys-card-border); border-radius: 6px; font-size: 14px; background: var(--qualys-card-bg); color: var(--qualys-text); }
-                .qualys-search-input:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15); }
-                .qualys-search-input::placeholder { color: var(--qualys-text-muted); }
-                .qualys-no-results { padding: 20px; text-align: center; color: var(--qualys-text-muted); font-style: italic; }
-                .vuln-row-hidden { display: none !important; }
-                .qualys-filter-row { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 12px; }
+
+                .qualys-filter-controls { margin-bottom: 16px; }
+                .qualys-filter-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+                .qualys-search-input { flex: 1; max-width: 400px; padding: 10px 14px; border: 1px solid var(--qx-border); border-radius: 8px; font-size: 14px; font-family: 'Roboto', sans-serif; background: var(--qx-card-bg); color: var(--qx-text-primary); transition: all 0.2s; }
+                .qualys-search-input:focus { outline: none; border-color: var(--qx-primary); box-shadow: 0 0 0 3px rgba(9, 95, 179, 0.15); }
+                .qualys-search-input::placeholder { color: var(--qx-text-muted); }
                 .qualys-page-size { display: flex; align-items: center; gap: 8px; }
-                .qualys-page-size label { font-size: 13px; color: var(--qualys-text-secondary); }
-                .qualys-page-size select { padding: 6px 10px; border: 1px solid var(--qualys-card-border); border-radius: 4px; background: var(--qualys-card-bg); color: var(--qualys-text); font-size: 13px; cursor: pointer; }
-                .qualys-page-size select:focus { outline: none; border-color: #007bff; }
-                .qualys-showing { font-size: 13px; color: var(--qualys-text-muted); margin-left: auto; }
-                .qualys-layer { font-family: monospace; font-size: 11px; color: var(--qualys-text-muted); background: var(--qualys-stat-bg); padding: 2px 6px; border-radius: 3px; }
+                .qualys-page-size label { font-size: 13px; color: var(--qx-text-secondary); font-weight: 500; }
+                .qualys-page-size select { padding: 8px 12px; border: 1px solid var(--qx-border); border-radius: 6px; background: var(--qx-card-bg); color: var(--qx-text-primary); font-size: 13px; cursor: pointer; font-family: 'Roboto', sans-serif; }
+                .qualys-page-size select:focus { outline: none; border-color: var(--qx-primary); }
+                .qualys-showing { font-size: 13px; color: var(--qx-text-muted); margin-left: auto; }
+                .qualys-no-results { padding: 40px 20px; text-align: center; color: var(--qx-text-muted); }
+                .vuln-row-hidden { display: none !important; }
+
+                .qualys-layer { font-family: 'Roboto Mono', monospace; font-size: 11px; color: var(--qx-text-muted); background: var(--qx-bg); padding: 3px 8px; border-radius: 4px; }
+                .qualys-layer-cell { position: relative; }
+                .qualys-layer-cmd { font-family: 'Roboto Mono', monospace; font-size: 11px; color: var(--qx-text-primary); background: var(--qx-bg); padding: 6px 10px; border-radius: 6px; display: inline-block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; border: 1px solid var(--qx-border); transition: all 0.2s; }
+                .qualys-layer-cmd:hover { background: #e8f4fc; border-color: var(--qx-primary); }
+                .qualys-layer-expand { display: none; position: absolute; left: 0; top: 100%; z-index: 100; background: var(--qx-card-bg); border: 1px solid var(--qx-border); border-radius: var(--qx-radius); padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); max-width: 500px; min-width: 320px; }
+                .qualys-layer-expand.show { display: block; }
+                .qualys-layer-expand-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--qx-border); }
+                .qualys-layer-expand-title { font-weight: 500; font-size: 13px; color: var(--qx-text-secondary); }
+                .qualys-layer-expand-close { cursor: pointer; color: var(--qx-text-muted); font-size: 18px; line-height: 1; padding: 4px 8px; border-radius: 4px; transition: all 0.15s; }
+                .qualys-layer-expand-close:hover { color: var(--qx-text-primary); background: var(--qx-bg); }
+                .qualys-layer-expand-sha { font-family: 'Roboto Mono', monospace; font-size: 10px; color: var(--qx-text-muted); margin-bottom: 10px; word-break: break-all; }
+                .qualys-layer-expand-cmd { font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--qx-text-primary); white-space: pre-wrap; word-break: break-word; background: var(--qx-bg); padding: 12px; border-radius: 8px; max-height: 200px; overflow-y: auto; line-height: 1.6; }
+
+                .qualys-view-toggle { display: inline-flex; border: 1px solid var(--qx-border); border-radius: 8px; overflow: hidden; margin-left: 16px; }
+                .qualys-view-btn { padding: 8px 16px; font-size: 12px; font-weight: 500; cursor: pointer; background: var(--qx-card-bg); color: var(--qx-text-muted); border: none; transition: all 0.15s; font-family: 'Roboto', sans-serif; }
+                .qualys-view-btn:hover { background: var(--qx-bg); color: var(--qx-text-secondary); }
+                .qualys-view-btn.active { background: var(--qx-primary); color: white; }
+
+                .qualys-layer-group { background: var(--qx-bg); cursor: pointer; transition: all 0.15s; }
+                .qualys-layer-group:hover { background: var(--qx-border); }
+                .qualys-layer-group td { padding: 14px 12px; font-weight: 500; border-bottom: 2px solid var(--qx-border); color: var(--qx-text-primary); }
+                .qualys-layer-group-toggle { display: inline-block; width: 24px; color: var(--qx-primary); transition: transform 0.2s; }
+                .qualys-layer-group.collapsed .qualys-layer-group-toggle { transform: rotate(-90deg); }
+                .qualys-layer-group-cmd { font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--qx-text-primary); max-width: 500px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--qx-card-bg); padding: 6px 12px; border-radius: 6px; border: 1px solid var(--qx-border); }
+                .qualys-layer-group-count { display: inline-flex; align-items: center; justify-content: center; background: var(--qx-primary); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; margin-left: 12px; }
+                .qualys-layer-group-severity { display: inline-flex; gap: 8px; margin-left: 16px; }
+                .qualys-layer-group-severity .qualys-badge { font-size: 10px; padding: 3px 8px; min-width: auto; }
+                .qualys-grouped-row { display: none; background: var(--qx-card-bg); }
+                .qualys-grouped-view .qualys-grouped-row.group-expanded:not(.vuln-row-hidden) { display: table-row; }
+                .qualys-grouped-row td { background: var(--qx-card-bg); }
+                .qualys-grouped-row td:first-child { padding-left: 36px; }
+                .qualys-grouped-view .qualys-layer-group { display: table-row; }
+                .qualys-flat-view .qualys-layer-group { display: none; }
+                .qualys-flat-view .qualys-grouped-row:not(.vuln-row-hidden) { display: table-row; }
+                .vuln-row-hidden { display: none !important; }
             </style>
 
             <div class="qualys-report">
@@ -211,7 +222,13 @@
                 <!-- Vulnerabilities Table -->
                 <j:if test="${it.hasDetailedReport()}">
                     <div class="qualys-card">
-                        <h2>Vulnerabilities (<span id="vuln-count">${it.totalVulnerabilities}</span>)</h2>
+                        <h2 style="display: flex; align-items: center;">
+                            Vulnerabilities (<span id="vuln-count">${it.totalVulnerabilities}</span>)
+                            <div class="qualys-view-toggle">
+                                <button class="qualys-view-btn" data-view="flat" title="Flat view">List</button>
+                                <button class="qualys-view-btn active" data-view="grouped" title="Group by layer">Layers</button>
+                            </div>
+                        </h2>
 
                         <j:if test="${it.totalVulnerabilities > 0}">
                             <div class="qualys-filter-controls">
@@ -246,14 +263,11 @@
                                 <thead>
                                     <tr>
                                         <th style="width: 80px;">Severity</th>
-                                        <th style="width: 100px;">QID</th>
-                                        <th>Title</th>
+                                        <th style="width: 280px;">Layer Origin</th>
+                                        <th style="width: 80px;">QID</th>
                                         <th style="width: 150px;">Package</th>
                                         <th style="width: 100px;">Version</th>
                                         <th style="width: 100px;">Fixed In</th>
-                                        <th style="width: 100px;">Layer</th>
-                                        <th style="width: 150px;">CVEs</th>
-                                        <th style="width: 60px;">QDS</th>
                                     </tr>
                                 </thead>
                                 <tbody id="vuln-tbody">
@@ -262,34 +276,31 @@
                                             <td>
                                                 <span class="qualys-badge ${vuln.severityClass}">${vuln.severity}</span>
                                             </td>
+                                            <td class="qualys-layer-cell">
+                                                <j:if test="${vuln.layerCommandShort != null}">
+                                                    <div class="qualys-layer-cmd" onclick="toggleLayerExpand(this)" title="Click to expand">
+                                                        ${vuln.layerCommandShort}
+                                                    </div>
+                                                    <div class="qualys-layer-expand">
+                                                        <div class="qualys-layer-expand-header">
+                                                            <span class="qualys-layer-expand-title">Layer Command</span>
+                                                            <span class="qualys-layer-expand-close" onclick="closeLayerExpand(this)">×</span>
+                                                        </div>
+                                                        <div class="qualys-layer-expand-sha">${vuln.layerSHA}</div>
+                                                        <div class="qualys-layer-expand-cmd">${vuln.layerCommand}</div>
+                                                    </div>
+                                                </j:if>
+                                                <j:if test="${vuln.layerCommandShort == null}">
+                                                    <j:if test="${vuln.layerShort != null}">
+                                                        <span class="qualys-layer" title="${vuln.layerSHA}">${vuln.layerShort}</span>
+                                                    </j:if>
+                                                    <j:if test="${vuln.layerShort == null}">-</j:if>
+                                                </j:if>
+                                            </td>
                                             <td>${vuln.qid != null ? vuln.qid : '-'}</td>
-                                            <td class="qualys-truncate" title="${vuln.title}">${vuln.title != null ? vuln.title : '-'}</td>
                                             <td class="qualys-mono">${vuln.packageName != null ? vuln.packageName : '-'}</td>
                                             <td class="qualys-mono">${vuln.installedVersion != null ? vuln.installedVersion : '-'}</td>
                                             <td class="qualys-mono">${vuln.fixedVersion != null ? vuln.fixedVersion : '-'}</td>
-                                            <td>
-                                                <j:if test="${vuln.layerShort != null}">
-                                                    <span class="qualys-layer" title="${vuln.layerSHA}">${vuln.layerShort}</span>
-                                                </j:if>
-                                                <j:if test="${vuln.layerShort == null}">-</j:if>
-                                            </td>
-                                            <td>
-                                                <j:forEach var="cve" items="${vuln.cves}" varStatus="cveStatus">
-                                                    <a class="qualys-cve-link" href="https://nvd.nist.gov/vuln/detail/${cve}" target="_blank">${cve}</a>
-                                                    <j:if test="${!cveStatus.last}">, </j:if>
-                                                </j:forEach>
-                                                <j:if test="${vuln.cves.isEmpty()}">-</j:if>
-                                            </td>
-                                            <td>
-                                                <j:choose>
-                                                    <j:when test="${vuln.qdsScore > 0}">
-                                                        <span class="qualys-qds ${vuln.qdsScore >= 70 ? 'high' : (vuln.qdsScore >= 40 ? 'medium' : 'low')}">
-                                                            ${vuln.qdsScore}
-                                                        </span>
-                                                    </j:when>
-                                                    <j:otherwise>-</j:otherwise>
-                                                </j:choose>
-                                            </td>
                                         </tr>
                                     </j:forEach>
                                 </tbody>
@@ -302,7 +313,15 @@
 
                     <!-- Software Packages (SBOM) -->
                     <div class="qualys-card">
-                        <h2>Software Packages (<span id="pkg-count">${it.totalPackages}</span>)</h2>
+                        <h2 style="display: flex; align-items: center;">
+                            Software Packages (<span id="pkg-count">${it.totalPackages}</span>)
+                            <j:if test="${it.hasLayers()}">
+                                <div class="qualys-view-toggle">
+                                    <button class="qualys-view-btn pkg-view-btn" data-view="flat" title="Flat view">List</button>
+                                    <button class="qualys-view-btn pkg-view-btn active" data-view="grouped" title="Group by layer">Layers</button>
+                                </div>
+                            </j:if>
+                        </h2>
 
                         <j:if test="${it.totalPackages > 0}">
                             <div class="qualys-filter-controls">
@@ -339,7 +358,7 @@
                                         <th>Package Name</th>
                                         <th>Version</th>
                                         <th>Type</th>
-                                        <th>Layer</th>
+                                        <th style="width: 220px;">Layer Origin</th>
                                     </tr>
                                 </thead>
                                 <tbody id="pkg-tbody">
@@ -348,11 +367,26 @@
                                             <td>${pkg.name}</td>
                                             <td>${pkg.version != null ? pkg.version : '-'}</td>
                                             <td>${pkg.type != null ? pkg.type : '-'}</td>
-                                            <td>
-                                                <j:if test="${pkg.layerShort != null}">
-                                                    <span class="qualys-layer" title="${pkg.layerSHA}">${pkg.layerShort}</span>
+                                            <td class="qualys-layer-cell">
+                                                <j:if test="${pkg.layerCommandShort != null}">
+                                                    <div class="qualys-layer-cmd" onclick="toggleLayerExpand(this)" title="Click to expand">
+                                                        ${pkg.layerCommandShort}
+                                                    </div>
+                                                    <div class="qualys-layer-expand">
+                                                        <div class="qualys-layer-expand-header">
+                                                            <span class="qualys-layer-expand-title">Layer Command</span>
+                                                            <span class="qualys-layer-expand-close" onclick="closeLayerExpand(this)">×</span>
+                                                        </div>
+                                                        <div class="qualys-layer-expand-sha">${pkg.layerSHA}</div>
+                                                        <div class="qualys-layer-expand-cmd">${pkg.layerCommand}</div>
+                                                    </div>
                                                 </j:if>
-                                                <j:if test="${pkg.layerShort == null}">-</j:if>
+                                                <j:if test="${pkg.layerCommandShort == null}">
+                                                    <j:if test="${pkg.layerShort != null}">
+                                                        <span class="qualys-layer" title="${pkg.layerSHA}">${pkg.layerShort}</span>
+                                                    </j:if>
+                                                    <j:if test="${pkg.layerShort == null}">-</j:if>
+                                                </j:if>
                                             </td>
                                         </tr>
                                     </j:forEach>
@@ -404,7 +438,118 @@
             </div>
 
             <script>
+                function toggleLayerExpand(el) {
+                    var expandEl = el.nextElementSibling;
+                    var allExpands = document.querySelectorAll('.qualys-layer-expand.show');
+                    allExpands.forEach(function(e) { if (e !== expandEl) e.classList.remove('show'); });
+                    expandEl.classList.toggle('show');
+                }
+                function closeLayerExpand(el) {
+                    el.closest('.qualys-layer-expand').classList.remove('show');
+                }
+                document.addEventListener('click', function(e) {
+                    if (!e.target.closest('.qualys-layer-cell')) {
+                        document.querySelectorAll('.qualys-layer-expand.show').forEach(function(el) {
+                            el.classList.remove('show');
+                        });
+                    }
+                });
+
                 (function() {
+                    var tbody = document.getElementById('vuln-tbody');
+                    var table = document.getElementById('vuln-table');
+                    if (!tbody || !table) return;
+
+                    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+                    var layerGroups = {};
+                    var layerOrder = [];
+
+                    rows.forEach(function(row) {
+                        var layer = row.getAttribute('data-layer') || 'unknown';
+                        var layerCmd = row.querySelector('.qualys-layer-cmd');
+                        var cmdText = layerCmd ? layerCmd.textContent.trim() : layer.substring(0, 12);
+                        var fullCmd = row.querySelector('.qualys-layer-expand-cmd');
+                        var fullCmdText = fullCmd ? fullCmd.textContent.trim() : cmdText;
+
+                        if (!layerGroups[layer]) {
+                            layerGroups[layer] = { cmd: cmdText, fullCmd: fullCmdText, rows: [], critical: 0, high: 0, medium: 0, low: 0 };
+                            layerOrder.push(layer);
+                        }
+                        layerGroups[layer].rows.push(row);
+                        var sev = row.getAttribute('data-severity');
+                        if (sev === 'critical') layerGroups[layer].critical++;
+                        else if (sev === 'high') layerGroups[layer].high++;
+                        else if (sev === 'medium') layerGroups[layer].medium++;
+                        else if (sev === 'low') layerGroups[layer].low++;
+
+                    });
+
+                    layerOrder.forEach(function(layer) {
+                        var group = layerGroups[layer];
+                        var groupRow = document.createElement('tr');
+                        groupRow.className = 'qualys-layer-group';
+                        groupRow.setAttribute('data-layer-group', layer);
+
+                        var sevBadges = '';
+                        if (group.critical > 0) sevBadges += '<span class="qualys-badge critical">' + group.critical + ' Critical</span>';
+                        if (group.high > 0) sevBadges += '<span class="qualys-badge high">' + group.high + ' High</span>';
+                        if (group.medium > 0) sevBadges += '<span class="qualys-badge medium">' + group.medium + ' Medium</span>';
+                        if (group.low > 0) sevBadges += '<span class="qualys-badge low">' + group.low + ' Low</span>';
+
+                        var safeTitle = group.fullCmd.replace(/"/g, "'").replace(/&lt;/g, '').replace(/&gt;/g, '');
+                        groupRow.innerHTML = '<td colspan="6">' +
+                            '<span class="qualys-layer-group-toggle">▼</span> ' +
+                            '<span class="qualys-layer-group-cmd" title="' + safeTitle + '">' + group.fullCmd.substring(0, 80) + (group.fullCmd.length > 80 ? '...' : '') + '</span>' +
+                            '<span class="qualys-layer-group-count">' + group.rows.length + ' vulnerabilities</span>' +
+                            '<span class="qualys-layer-group-severity">' + sevBadges + '</span>' +
+                            '</td>';
+
+                        groupRow.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            groupRow.classList.toggle('collapsed');
+                            var isCollapsed = groupRow.classList.contains('collapsed');
+                            group.rows.forEach(function(r) {
+                                if (isCollapsed) {
+                                    r.classList.remove('group-expanded');
+                                } else {
+                                    r.classList.add('group-expanded');
+                                    r.classList.remove('vuln-row-hidden');
+                                }
+                            });
+                        });
+
+                        groupRow.classList.add('collapsed');
+                        tbody.insertBefore(groupRow, group.rows[0]);
+                        group.rows.forEach(function(r) {
+                            r.classList.add('qualys-grouped-row');
+                            tbody.insertBefore(r, groupRow.nextSibling);
+                        });
+                    });
+
+                    table.classList.add('qualys-grouped-view');
+
+                    var viewBtns = document.querySelectorAll('.qualys-view-btn');
+                    var triggerFilterUpdate = null;
+                    viewBtns.forEach(function(btn) {
+                        btn.addEventListener('click', function() {
+                            viewBtns.forEach(function(b) { b.classList.remove('active'); });
+                            btn.classList.add('active');
+                            var view = btn.getAttribute('data-view');
+                            if (view === 'flat') {
+                                table.classList.remove('qualys-grouped-view');
+                                table.classList.add('qualys-flat-view');
+                            } else {
+                                table.classList.remove('qualys-flat-view');
+                                table.classList.add('qualys-grouped-view');
+                                layerOrder.forEach(function(lyr) {
+                                    var grp = layerGroups[lyr];
+                                    grp.rows.forEach(function(r) { r.classList.add('group-expanded'); });
+                                });
+                            }
+                            if (triggerFilterUpdate) triggerFilterUpdate();
+                        });
+                    });
+
                     function createTableFilter(config) {
                         var search = document.getElementById(config.searchId);
                         var pageSize = document.getElementById(config.pageSizeId);
@@ -415,11 +560,12 @@
                         var noResults = document.getElementById(config.noResultsId);
                         var countEl = document.getElementById(config.countId);
                         if (!tbody) return null;
-                        var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
-                        var state = { search: '', severity: 'all', layer: 'all', pageSize: 25 };
+                        var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr:not(.qualys-layer-group)'));
+                        var state = { search: '', severity: 'all', layer: 'all', pageSize: config.defaultPageSize || '25' };
 
                         function update() {
                             var matched = [];
+                            var isGroupedView = table &amp;&amp; table.classList.contains('qualys-grouped-view');
                             rows.forEach(function(row) {
                                 var text = row.textContent.toLowerCase();
                                 var sev = row.getAttribute('data-severity');
@@ -431,14 +577,19 @@
                                     matched.push(row);
                                 }
                             });
-                            var limit = state.pageSize === 'all' ? matched.length : parseInt(state.pageSize);
+                            var limit = (isGroupedView || state.pageSize === 'all') ? matched.length : parseInt(state.pageSize);
                             var shown = 0;
-                            rows.forEach(function(row) { row.classList.add('vuln-row-hidden'); });
+                            rows.forEach(function(row) {
+                                row.classList.add('vuln-row-hidden');
+                            });
                             matched.forEach(function(row, i) {
-                                if (i &lt; limit) { row.classList.remove('vuln-row-hidden'); shown++; }
+                                if (i &lt; limit) {
+                                    row.classList.remove('vuln-row-hidden');
+                                    shown++;
+                                }
                             });
                             if (countEl) countEl.textContent = matched.length;
-                            if (showing) showing.textContent = 'Showing ' + shown + ' of ' + matched.length;
+                            if (showing) showing.textContent = isGroupedView ? matched.length + ' total' : 'Showing ' + shown + ' of ' + matched.length;
                             if (noResults) noResults.style.display = matched.length === 0 ? 'block' : 'none';
                             if (table) table.style.display = matched.length === 0 ? 'none' : 'table';
                         }
@@ -447,29 +598,113 @@
                         if (pageSize) pageSize.addEventListener('change', function() { state.pageSize = pageSize.value; update(); });
                         if (layerFilter) layerFilter.addEventListener('change', function() { state.layer = layerFilter.value; update(); });
                         update();
-                        return { setState: function(key, val) { state[key] = val; update(); } };
+                        return { setState: function(key, val) { state[key] = val; update(); }, update: update };
                     }
 
                     var vulnFilter = createTableFilter({
                         searchId: 'vuln-search', pageSizeId: 'vuln-page-size', showingId: 'vuln-showing',
                         layerFilterId: 'vuln-layer-filter',
                         tbodyId: 'vuln-tbody', tableId: 'vuln-table', noResultsId: 'no-results',
-                        countId: 'vuln-count', hasSeverity: true, hasLayer: true
+                        countId: 'vuln-count', hasSeverity: true, hasLayer: true, defaultPageSize: '25'
                     });
+                    if (vulnFilter) triggerFilterUpdate = vulnFilter.update;
 
-                    createTableFilter({
+                    var pkgFilter = createTableFilter({
                         searchId: 'pkg-search', pageSizeId: 'pkg-page-size', showingId: 'pkg-showing',
                         layerFilterId: 'pkg-layer-filter',
                         tbodyId: 'pkg-tbody', tableId: 'pkg-table', noResultsId: 'pkg-no-results',
-                        countId: 'pkg-count', hasSeverity: false, hasLayer: true
+                        countId: 'pkg-count', hasSeverity: false, hasLayer: true, defaultPageSize: '25'
                     });
+
+                    (function() {
+                        var pkgTbody = document.getElementById('pkg-tbody');
+                        var pkgTable = document.getElementById('pkg-table');
+                        if (!pkgTbody || !pkgTable) return;
+
+                        var pkgRows = Array.prototype.slice.call(pkgTbody.querySelectorAll('tr'));
+                        var pkgLayerGroups = {};
+                        var pkgLayerOrder = [];
+
+                        pkgRows.forEach(function(row) {
+                            var layer = row.getAttribute('data-layer') || 'unknown';
+                            var layerCmd = row.querySelector('.qualys-layer-cmd');
+                            var cmdText = layerCmd ? layerCmd.textContent.trim() : layer.substring(0, 12);
+                            var fullCmd = row.querySelector('.qualys-layer-expand-cmd');
+                            var fullCmdText = fullCmd ? fullCmd.textContent.trim() : cmdText;
+
+                            if (!pkgLayerGroups[layer]) {
+                                pkgLayerGroups[layer] = { cmd: cmdText, fullCmd: fullCmdText, rows: [] };
+                                pkgLayerOrder.push(layer);
+                            }
+                            pkgLayerGroups[layer].rows.push(row);
+                        });
+
+                        pkgLayerOrder.forEach(function(layer) {
+                            var group = pkgLayerGroups[layer];
+                            var groupRow = document.createElement('tr');
+                            groupRow.className = 'qualys-layer-group';
+                            groupRow.setAttribute('data-layer-group', layer);
+
+                            var safeTitle = group.fullCmd.replace(/"/g, "'").replace(/&lt;/g, '').replace(/&gt;/g, '');
+                            groupRow.innerHTML = '<td colspan="4">' +
+                                '<span class="qualys-layer-group-toggle">▼</span> ' +
+                                '<span class="qualys-layer-group-cmd" title="' + safeTitle + '">' + group.fullCmd.substring(0, 80) + (group.fullCmd.length > 80 ? '...' : '') + '</span>' +
+                                '<span class="qualys-layer-group-count">' + group.rows.length + ' packages</span>' +
+                                '</td>';
+
+                            groupRow.addEventListener('click', function(e) {
+                                e.stopPropagation();
+                                groupRow.classList.toggle('collapsed');
+                                var isCollapsed = groupRow.classList.contains('collapsed');
+                                group.rows.forEach(function(r) {
+                                    if (isCollapsed) {
+                                        r.classList.remove('group-expanded');
+                                    } else {
+                                        r.classList.add('group-expanded');
+                                        r.classList.remove('vuln-row-hidden');
+                                    }
+                                });
+                            });
+
+                            groupRow.classList.add('collapsed');
+                            pkgTbody.insertBefore(groupRow, group.rows[0]);
+                            group.rows.forEach(function(r) {
+                                r.classList.add('qualys-grouped-row');
+                                pkgTbody.insertBefore(r, groupRow.nextSibling);
+                            });
+                        });
+
+                        pkgTable.classList.add('qualys-grouped-view');
+
+                        var pkgViewBtns = document.querySelectorAll('.pkg-view-btn');
+                        pkgViewBtns.forEach(function(btn) {
+                            btn.addEventListener('click', function() {
+                                pkgViewBtns.forEach(function(b) { b.classList.remove('active'); });
+                                btn.classList.add('active');
+                                var view = btn.getAttribute('data-view');
+                                if (view === 'flat') {
+                                    pkgTable.classList.remove('qualys-grouped-view');
+                                    pkgTable.classList.add('qualys-flat-view');
+                                } else {
+                                    pkgTable.classList.remove('qualys-flat-view');
+                                    pkgTable.classList.add('qualys-grouped-view');
+                                    pkgLayerOrder.forEach(function(lyr) {
+                                        var grp = pkgLayerGroups[lyr];
+                                        grp.rows.forEach(function(r) { r.classList.add('group-expanded'); });
+                                    });
+                                }
+                                if (pkgFilter) pkgFilter.update();
+                            });
+                        });
+                    })();
 
                     var sevFilters = document.querySelectorAll('#severity-filters .qualys-severity');
                     sevFilters.forEach(function(box) {
                         box.addEventListener('click', function() {
                             sevFilters.forEach(function(b) { b.classList.remove('active'); });
                             box.classList.add('active');
-                            if (vulnFilter) vulnFilter.setState('severity', box.getAttribute('data-severity'));
+                            var sev = box.getAttribute('data-severity');
+                            if (vulnFilter) vulnFilter.setState('severity', sev);
                         });
                     });
                 })();

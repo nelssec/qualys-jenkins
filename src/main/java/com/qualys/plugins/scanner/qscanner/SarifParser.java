@@ -68,12 +68,13 @@ public class SarifParser {
 
                 extractTargetInfo(run, details);
                 Map<String, RuleInfo> ruleInfoMap = buildRuleInfoMap(run);
+                Map<String, String> layerCommandMap = buildLayerCommandMap(run);
                 JsonArray results = getArrayOrNull(run, "results");
                 if (results != null) {
                     for (JsonElement resultElement : results) {
                         if (!resultElement.isJsonObject()) continue;
                         JsonObject result = resultElement.getAsJsonObject();
-                        List<Vulnerability> vulns = parseVulnerabilities(result, ruleInfoMap);
+                        List<Vulnerability> vulns = parseVulnerabilities(result, ruleInfoMap, layerCommandMap);
 
                         for (Vulnerability vuln : vulns) {
                             summary.increment(vuln.getSeverityLevel());
@@ -91,6 +92,7 @@ public class SarifParser {
                                     pkg.setName(vuln.getPackageName());
                                     pkg.setVersion(vuln.getInstalledVersion());
                                     pkg.setLayerSHA(vuln.getLayerSHA());
+                                    pkg.setLayerCommand(vuln.getLayerCommand());
                                     details.addPackage(pkg);
                                 }
                             }
@@ -186,7 +188,7 @@ public class SarifParser {
      * Parse vulnerabilities from a single result.
      * Qualys can have multiple vulnerable packages per result, so we create one Vulnerability per package.
      */
-    private static List<Vulnerability> parseVulnerabilities(JsonObject result, Map<String, RuleInfo> ruleInfoMap) {
+    private static List<Vulnerability> parseVulnerabilities(JsonObject result, Map<String, RuleInfo> ruleInfoMap, Map<String, String> layerCommandMap) {
         List<Vulnerability> vulns = new ArrayList<>();
 
         String ruleId = getStringOrNull(result, "ruleId");
@@ -220,7 +222,11 @@ public class SarifParser {
                 vuln.setPackageName(getStringOrNull(sw, "name"));
                 vuln.setInstalledVersion(getStringOrNull(sw, "installedVersion"));
                 vuln.setFixedVersion(getStringOrNull(sw, "fixedVersion"));
-                vuln.setLayerSHA(getStringOrNull(sw, "layerSHA"));
+                String layerSHA = getStringOrNull(sw, "layerSHA");
+                vuln.setLayerSHA(layerSHA);
+                if (layerSHA != null && layerCommandMap.containsKey(layerSHA)) {
+                    vuln.setLayerCommand(layerCommandMap.get(layerSHA));
+                }
 
                 vulns.add(vuln);
             }
@@ -358,6 +364,31 @@ public class SarifParser {
             }
 
             map.put(ruleId, info);
+        }
+
+        return map;
+    }
+
+    private static Map<String, String> buildLayerCommandMap(JsonObject run) {
+        Map<String, String> map = new HashMap<>();
+
+        JsonObject runProps = getObjectOrNull(run, "properties");
+        if (runProps == null) return map;
+
+        JsonArray layerInfo = getArrayOrNull(runProps, "layerInfo");
+        if (layerInfo == null) return map;
+
+        for (JsonElement layerElement : layerInfo) {
+            if (!layerElement.isJsonObject()) continue;
+            JsonObject layer = layerElement.getAsJsonObject();
+
+            String hash = getStringOrNull(layer, "LayerContentHash");
+            String command = getStringOrNull(layer, "Command");
+
+            if (hash != null && command != null) {
+                map.put("sha256:" + hash, command);
+                map.put(hash, command);
+            }
         }
 
         return map;

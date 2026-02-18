@@ -13,6 +13,7 @@ public class PackageInfo implements Serializable {
     private String type; // e.g., "deb", "rpm", "npm", "pip", etc.
     private int vulnerabilityCount;
     private String layerSHA;
+    private String layerCommand;
 
     public PackageInfo() {
     }
@@ -37,6 +38,18 @@ public class PackageInfo implements Serializable {
 
     public String getLayerSHA() { return layerSHA; }
     public void setLayerSHA(String layerSHA) { this.layerSHA = layerSHA; }
+
+    public String getLayerCommand() { return layerCommand; }
+    public void setLayerCommand(String layerCommand) { this.layerCommand = layerCommand; }
+
+    public String getLayerCommandShort() {
+        if (layerCommand == null || layerCommand.isEmpty()) return null;
+        String cmd = layerCommand;
+        if (cmd.length() > 50) {
+            return cmd.substring(0, 47) + "...";
+        }
+        return cmd;
+    }
 
     public String getLayerShort() {
         if (layerSHA == null || layerSHA.isEmpty()) return null;
