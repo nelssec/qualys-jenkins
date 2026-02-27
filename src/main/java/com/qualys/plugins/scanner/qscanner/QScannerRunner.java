@@ -18,7 +18,7 @@ import java.util.List;
 
 public class QScannerRunner implements ScannerRunner {
 
-    private static final String QSCANNER_VERSION = "1.0.0";
+    private static final String QSCANNER_VERSION = "4.8.0-2";
     private static final String QSCANNER_DOWNLOAD_URL =
         "https://github.com/nelssec/qualys-lambda/raw/refs/heads/main/scanner-lambda/qscanner.gz";
     private static final String QSCANNER_CHECKSUM_URL = null;
