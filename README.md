@@ -1,5 +1,7 @@
 # Qualys Scanner Plugin for Jenkins
 
+> ⚠️ **Unofficial project.** This is a personal project and is not affiliated with, endorsed by, or supported by Qualys, Inc.
+
 Integrate Qualys container and code security scanning into your Jenkins CI/CD pipelines.
 
 ## Features
